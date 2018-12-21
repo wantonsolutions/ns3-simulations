@@ -70,9 +70,16 @@ private:
   void VerboseServerSendPrint(Address from, Ptr<Packet> packet);
   void VerboseServerReceivePrint(Address from, Ptr<Packet> packet);
 
+  /*
+   * connect to a socket and return it
+   */
+  Ptr<Socket> ConnectSocket(uint16_t port, Ptr<NetDevice> dev);
+
   uint16_t m_port; //!< Port on which we listen for incoming packets.
   Ptr<Socket> m_socket; //!< IPv4 Socket
   Ptr<Socket> m_socket6; //!< IPv6 Socket
+
+  Ptr<Socket>* m_sockets;
   Address m_local; //!< local multicast address //Todo get multiple addresses
 
   uint8_t m_parallel;
