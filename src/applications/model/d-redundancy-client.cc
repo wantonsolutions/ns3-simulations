@@ -199,9 +199,6 @@ DRedundancyClient::StartApplication (void)
 {
   NS_LOG_FUNCTION (this);
 
-  //m_socket = ConnectSocket(m_peerAddress,m_peerPort);
-  //m_socket->SetRecvCallback (MakeCallback (&DRedundancyClient::HandleRead, this));
-  //m_socket->SetAllowBroadcast (true);
   m_sockets = new Ptr<Socket>[m_parallel];
   ScheduleTransmit (Seconds (0.));
   for (int i=0;i<m_parallel;i++) {
@@ -209,6 +206,8 @@ DRedundancyClient::StartApplication (void)
 	Ptr<Node> n = GetNode();
 	Ptr<NetDevice> dev = n->GetDevice(i);
 	m_sockets[i] = ConnectSocket(m_peerAddresses[i],m_peerPort,dev);
+	m_sockets[i]->SetRecvCallback (MakeCallback (&DRedundancyClient::HandleRead, this));
+	m_sockets[i]->SetAllowBroadcast (true);
   }
 }
 
@@ -394,10 +393,11 @@ DRedundancyClient::Send (void)
     //umap["Practice"] = 20; 
     //umap["Contribute"] = 30; 
 
+  m_sent++;
   m_txTrace (p);
   for (int i=0;i<m_parallel;i++) {
   	m_sockets[i]->Send (p);
-	  VerboseSendLogging(m_peerAddresses[i]);
+	VerboseSendLogging(m_peerAddresses[i]);
   }
   if (m_sent < m_count) 
     {
@@ -412,18 +412,17 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 {
   NS_LOG_FUNCTION (this << socket);
   Ptr<Packet> packet;
-  //PdcpTag idtag;
   Ipv4PacketInfoTag idtag;
   Address from;
   while ((packet = socket->RecvFrom (from)))
     {
+	    printf("RECEIVED CLIENT!\n");
       if (packet->PeekPacketTag(idtag)) {
 	      //NS_LOG_INFO("Tag ID" << idtag.GetSenderTimestamp());
 	      //NS_LOG_INFO("timestamp index " << idtag.GetSenderTimestamp().GetNanoSeconds());
 	      //int requestIndex = int(idtag.GetSenderTimestamp().GetNanoSeconds()) % REQUEST_BUFFER_SIZE;
 	      int requestIndex = int(idtag.GetRecvIf()) % REQUEST_BUFFER_SIZE;
 	      printf("request Index: %d\n",requestIndex);
-	      //int requestIndex = 5;
 	      //printf("index %d\n",requestIndex);
               Time difference = Simulator::Now() - d_requests[requestIndex];
 	      if (m_peerPort == 11) {

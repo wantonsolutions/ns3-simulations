@@ -67,6 +67,8 @@ private:
    * \param socket the socket the packet was received to.
    */
   void HandleRead (Ptr<Socket> socket);
+  void VerboseServerSendPrint(Address from, Ptr<Packet> packet);
+  void VerboseServerReceivePrint(Address from, Ptr<Packet> packet);
 
   uint16_t m_port; //!< Port on which we listen for incoming packets.
   Ptr<Socket> m_socket; //!< IPv4 Socket
