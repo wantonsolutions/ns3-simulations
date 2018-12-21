@@ -92,7 +92,7 @@ DRedundancyClient::GetTypeId (void)
 }
 
 Ptr<Socket> 
-DRedundancyClient::ConnectSocket(Address address, uint16_t port) {
+DRedundancyClient::ConnectSocket(Address address, uint16_t port, Ptr<NetDevice> dev) {
   NS_LOG_FUNCTION ("Connecting to a socket");
 
   Ptr<Socket> socket;
@@ -102,11 +102,9 @@ DRedundancyClient::ConnectSocket(Address address, uint16_t port) {
       socket = Socket::CreateSocket (GetNode (), tid);
       if (Ipv4Address::IsMatchingType(address) == true)
         {
-          if (socket->Bind () == -1)
-            {
-              NS_FATAL_ERROR ("Failed to bind socket");
-            }
-          socket->Connect (InetSocketAddress (Ipv4Address::ConvertFrom(address), m_peerPort));
+          socket->BindToNetDevice (dev);
+              //NS_FATAL_ERROR ("Failed to bind socket");
+          socket->Connect (InetSocketAddress (Ipv4Address::ConvertFrom(address), port));
         }
       else if (Ipv6Address::IsMatchingType(address) == true)
         {
@@ -201,14 +199,16 @@ DRedundancyClient::StartApplication (void)
 {
   NS_LOG_FUNCTION (this);
 
-  m_socket = ConnectSocket(m_peerAddress,m_peerPort);
-  m_socket->SetRecvCallback (MakeCallback (&DRedundancyClient::HandleRead, this));
-  m_socket->SetAllowBroadcast (true);
+  //m_socket = ConnectSocket(m_peerAddress,m_peerPort);
+  //m_socket->SetRecvCallback (MakeCallback (&DRedundancyClient::HandleRead, this));
+  //m_socket->SetAllowBroadcast (true);
   m_sockets = new Ptr<Socket>[m_parallel];
   ScheduleTransmit (Seconds (0.));
   for (int i=0;i<m_parallel;i++) {
 	printf("Starting application setting up socket %d\n",i);
-	m_sockets[i] = ConnectSocket(m_peerAddresses[i],m_peerPort);
+	Ptr<Node> n = GetNode();
+	Ptr<NetDevice> dev = n->GetDevice(i);
+	m_sockets[i] = ConnectSocket(m_peerAddresses[i],m_peerPort,dev);
   }
 }
 
@@ -383,7 +383,8 @@ DRedundancyClient::Send (void)
   
   //PdcpTag idtag;
   Ipv4PacketInfoTag idtag;
-  //idtag.SetSenderTimestamp(Time(m_sent));
+  idtag.SetRecvIf(m_sent);
+  printf("request Index: %d\n",idtag.GetRecvIf());
   //printf("Sending Packet %d\n",m_sent);
   p->AddPacketTag(idtag);
   d_requests[m_sent % REQUEST_BUFFER_SIZE] = Simulator::Now();
@@ -420,7 +421,9 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 	      //NS_LOG_INFO("Tag ID" << idtag.GetSenderTimestamp());
 	      //NS_LOG_INFO("timestamp index " << idtag.GetSenderTimestamp().GetNanoSeconds());
 	      //int requestIndex = int(idtag.GetSenderTimestamp().GetNanoSeconds()) % REQUEST_BUFFER_SIZE;
-	      int requestIndex = 5;
+	      int requestIndex = int(idtag.GetRecvIf()) % REQUEST_BUFFER_SIZE;
+	      printf("request Index: %d\n",requestIndex);
+	      //int requestIndex = 5;
 	      //printf("index %d\n",requestIndex);
               Time difference = Simulator::Now() - d_requests[requestIndex];
 	      if (m_peerPort == 11) {

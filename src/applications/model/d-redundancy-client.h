@@ -69,7 +69,7 @@ public:
   /*
    * connect to a socket and return it
    */
-  Ptr<Socket> ConnectSocket(Address address, uint16_t port);
+  Ptr<Socket> ConnectSocket(Address address, uint16_t port, Ptr<NetDevice> dev);
 
   /**
    * Set the data size of the packet (the number of bytes that are sent as data
