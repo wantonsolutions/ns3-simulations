@@ -13,8 +13,6 @@ def build(bld):
         'model/packet-loss-counter.cc',
         'model/udp-echo-client.cc',
         'model/udp-echo-server.cc',
-        'model/udp-echo-client-report.cc',
-        'model/udp-echo-server-report.cc',
         'model/application-packet-probe.cc',
 	'model/d-redundancy-client.cc',
 	'model/d-redundancy-server.cc',
@@ -23,7 +21,6 @@ def build(bld):
         'helper/packet-sink-helper.cc',
         'helper/udp-client-server-helper.cc',
         'helper/udp-echo-helper.cc',
-        'helper/udp-echo-report-helper.cc',
         'helper/d-redundancy-helper.cc',
         ]
 
@@ -45,8 +42,6 @@ def build(bld):
         'model/packet-loss-counter.h',
         'model/udp-echo-client.h',
         'model/udp-echo-server.h',
-        'model/udp-echo-client-report.h',
-        'model/udp-echo-server-report.h',
 	'model/d-redundancy-client.h',
 	'model/d-redundancy-server.h',
         'model/application-packet-probe.h',
@@ -55,7 +50,6 @@ def build(bld):
         'helper/packet-sink-helper.h',
         'helper/udp-client-server-helper.h',
         'helper/udp-echo-helper.h',
-        'helper/udp-echo-report-helper.h',
         'helper/d-redundancy-helper.h',
         ]
 

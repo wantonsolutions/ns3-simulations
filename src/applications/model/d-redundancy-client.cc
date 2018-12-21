@@ -29,7 +29,9 @@
 #include "ns3/trace-source-accessor.h"
 #include "d-redundancy-client.h"
 
-#include "ns3/lte-pdcp-tag.h"
+//#include "ns3/lte-pdcp-tag.h"
+#include "ns3/ipv4-packet-info-tag.h"
+//#include "ns3/lte-pdcp-tag.h"
 #include <iostream>
 #include <fstream>
 
@@ -379,8 +381,9 @@ DRedundancyClient::Send (void)
   // so that tags added to the packet can be sent as well
   //
   
-  PdcpTag idtag;
-  idtag.SetSenderTimestamp(Time(m_sent));
+  //PdcpTag idtag;
+  Ipv4PacketInfoTag idtag;
+  //idtag.SetSenderTimestamp(Time(m_sent));
   //printf("Sending Packet %d\n",m_sent);
   p->AddPacketTag(idtag);
   d_requests[m_sent % REQUEST_BUFFER_SIZE] = Simulator::Now();
@@ -408,14 +411,16 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 {
   NS_LOG_FUNCTION (this << socket);
   Ptr<Packet> packet;
-  PdcpTag idtag;
+  //PdcpTag idtag;
+  Ipv4PacketInfoTag idtag;
   Address from;
   while ((packet = socket->RecvFrom (from)))
     {
       if (packet->PeekPacketTag(idtag)) {
 	      //NS_LOG_INFO("Tag ID" << idtag.GetSenderTimestamp());
 	      //NS_LOG_INFO("timestamp index " << idtag.GetSenderTimestamp().GetNanoSeconds());
-	      int requestIndex = int(idtag.GetSenderTimestamp().GetNanoSeconds()) % REQUEST_BUFFER_SIZE;
+	      //int requestIndex = int(idtag.GetSenderTimestamp().GetNanoSeconds()) % REQUEST_BUFFER_SIZE;
+	      int requestIndex = 5;
 	      //printf("index %d\n",requestIndex);
               Time difference = Simulator::Now() - d_requests[requestIndex];
 	      if (m_peerPort == 11) {
