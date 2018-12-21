@@ -146,7 +146,8 @@ DRedundancyClient::DRedundancyClient ()
   NS_LOG_FUNCTION (this);
   m_sent = 0;
   m_socket = 0;
-  m_sendEvent = EventId ();
+  m_parallel = 1;
+  m_sendEvent = EventId();
   m_data = 0;
   m_dataSize = 0;
 }
@@ -183,6 +184,7 @@ DRedundancyClient::SetAddresses(Address* addresses, uint8_t len)
 		NS_LOG_FUNCTION(this << addresses[i]);
 	}
 	m_peerAddresses = addresses;
+	//This is a bit hacky, but I need to have an event for each addresss
 }
 
 void
@@ -200,9 +202,10 @@ DRedundancyClient::StartApplication (void)
   m_socket = ConnectSocket(m_peerAddress,m_peerPort);
   m_socket->SetRecvCallback (MakeCallback (&DRedundancyClient::HandleRead, this));
   m_socket->SetAllowBroadcast (true);
-  ScheduleTransmit (Seconds (0.));
   m_sockets = new Ptr<Socket>[m_parallel];
+  ScheduleTransmit (Seconds (0.));
   for (int i=0;i<m_parallel;i++) {
+	printf("Starting application setting up socket %d\n",i);
 	m_sockets[i] = ConnectSocket(m_peerAddresses[i],m_peerPort);
   }
 }
@@ -219,8 +222,7 @@ DRedundancyClient::StopApplication ()
       m_socket->SetRecvCallback (MakeNullCallback<void, Ptr<Socket> > ());
       m_socket = 0;
     }
-
-  Simulator::Cancel (m_sendEvent);
+  	Simulator::Cancel (m_sendEvent);
 }
 
 void 
@@ -346,7 +348,8 @@ DRedundancyClient::Send (void)
 {
   NS_LOG_FUNCTION (this);
 
-  NS_ASSERT (m_sendEvent.IsExpired ());
+  //check that the first event is expired
+  //NS_ASSERT (m_sendEvent.IsExpired ());
 
   Ptr<Packet> p;
   if (m_dataSize)
@@ -391,11 +394,12 @@ DRedundancyClient::Send (void)
   for (int i=0;i<m_parallel;i++) {
   	m_sockets[i]->Send (p);
 	  VerboseSendLogging(m_peerAddresses[i]);
-	  if (m_sent < m_count) 
-	    {
-	      ScheduleTransmit (m_interval);
-	    }
   }
+  if (m_sent < m_count) 
+    {
+      printf("Scheduling next Transmission for %d in the future\n",int(m_interval.GetNanoSeconds()));
+      ScheduleTransmit (m_interval);
+    }
 	
 }
 

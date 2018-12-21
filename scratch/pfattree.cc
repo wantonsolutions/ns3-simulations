@@ -168,7 +168,7 @@ main (int argc, char *argv[])
   //map clients to servers 
   DRedundancyClientHelper dClient (serverport, serverIPS, PARALLEL);
   dClient.SetAttribute ("MaxPackets", UintegerValue (5000));
-  dClient.SetAttribute ("Interval", TimeValue (Seconds (0.001)));
+  dClient.SetAttribute ("Interval", TimeValue (Seconds (2)));
   dClient.SetAttribute ("PacketSize", UintegerValue (1024));
   //dClient.SetAddresses(serverIPS, PARALLEL);
 
