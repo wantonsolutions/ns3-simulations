@@ -63,6 +63,17 @@ DRedundancyServer::GetTypeId (void)
   return tid;
 }
 
+//TODO this is a broken function and should probably be removed.
+void
+DRedundancyServer::PrintSocketIP(Ptr<Socket> socket) {
+  //Ptr<NetDevice> nd = socket->GetBoundNetDevice();
+  //Address addr = nd->GetAddress();
+  Address addr;
+  socket->GetPeerName (addr);
+  InetSocketAddress iaddr = InetSocketAddress::ConvertFrom (addr); 
+  NS_LOG_INFO(iaddr.GetIpv4 () << ":" << iaddr.GetPort ());
+}
+
 DRedundancyServer::DRedundancyServer ()
 {
   NS_LOG_FUNCTION (this);
@@ -92,101 +103,6 @@ void
 DRedundancyServer::StartApplication (void)
 {
   NS_LOG_FUNCTION (this);
-/*
-  if (m_socket == 0)
-    {
-      TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-      m_socket = Socket::CreateSocket (GetNode (), tid);
-  if (m_socket == 0)
-    {
-      TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-      m_socket = Socket::CreateSocket (GetNode (), tid);
-      InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), m_port);
-      if (m_socket->Bind (local) == -1)
-        {
-          NS_FATAL_ERROR ("Failed to bind socket");
-        }
-      if (addressUtils::IsMulticast (m_local))
-        {
-          Ptr<UdpSocket> udpSocket = DynamicCast<UdpSocket> (m_socket);
-          if (udpSocket)
-            {
-              // equivalent to setsockopt (MCAST_JOIN_GROUP)
-              udpSocket->MulticastJoinGroup (0, m_local);
-            }
-          else
-            {
-              NS_FATAL_ERROR ("Error: Failed to join multicast group");
-            }
-        }
-    }
-
-  if (m_socket6 == 0)
-    {
-      TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-      m_socket6 = Socket::CreateSocket (GetNode (), tid);
-      Inet6SocketAddress local6 = Inet6SocketAddress (Ipv6Address::GetAny (), m_port);
-      if (m_socket6->Bind (local6) == -1)
-        {
-          NS_FATAL_ERROR ("Failed to bind socket");
-        }
-      if (addressUtils::IsMulticast (local6))
-        {
-          Ptr<UdpSocket> udpSocket = DynamicCast<UdpSocket> (m_socket6);
-          if (udpSocket)
-            {
-              // equivalent to setsockopt (MCAST_JOIN_GROUP)
-              udpSocket->MulticastJoinGroup (0, local6);
-            }
-          else
-            {
-              NS_FATAL_ERROR ("Error: Failed to join multicast group");
-            }
-        }
-    }
-      InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), m_port);
-      if (m_socket->Bind (local) == -1)
-        {
-          NS_FATAL_ERROR ("Failed to bind socket");
-        }
-      if (addressUtils::IsMulticast (m_local))
-        {
-          Ptr<UdpSocket> udpSocket = DynamicCast<UdpSocket> (m_socket);
-          if (udpSocket)
-            {
-              // equivalent to setsockopt (MCAST_JOIN_GROUP)
-              udpSocket->MulticastJoinGroup (0, m_local);
-            }
-          else
-            {
-              NS_FATAL_ERROR ("Error: Failed to join multicast group");
-            }
-        }
-    }
-
-  if (m_socket6 == 0)
-    {
-      TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-      m_socket6 = Socket::CreateSocket (GetNode (), tid);
-      Inet6SocketAddress local6 = Inet6SocketAddress (Ipv6Address::GetAny (), m_port);
-      if (m_socket6->Bind (local6) == -1)
-        {
-          NS_FATAL_ERROR ("Failed to bind socket");
-        }
-      if (addressUtils::IsMulticast (local6))
-        {
-          Ptr<UdpSocket> udpSocket = DynamicCast<UdpSocket> (m_socket6);
-          if (udpSocket)
-            {
-              // equivalent to setsockopt (MCAST_JOIN_GROUP)
-              udpSocket->MulticastJoinGroup (0, local6);
-            }
-          else
-            {
-              NS_FATAL_ERROR ("Error: Failed to join multicast group");
-            }
-        }
-    }*/
   m_sockets = new Ptr<Socket>[m_parallel];
   //ScheduleTransmit (Seconds (0.));
   for (int i=0;i<m_parallel;i++) {
@@ -196,6 +112,9 @@ DRedundancyServer::StartApplication (void)
 	m_sockets[i] = ConnectSocket(m_port,dev);
 	m_sockets[i]->SetRecvCallback (MakeCallback (&DRedundancyServer::HandleRead, this));
 	m_sockets[i]->SetAllowBroadcast (true);
+	//PrintSocketIP(m_sockets[i]);
+
+
   }
 
   //m_socket->SetRecvCallback (MakeCallback (&DRedundancyServer::HandleRead, this));
@@ -210,43 +129,9 @@ DRedundancyServer::ConnectSocket(uint16_t port, Ptr<NetDevice> dev) {
 	    printf("Setting up server sockets");
       TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
       socket = Socket::CreateSocket (GetNode (), tid);
-
-      InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), m_port);
-      InetSocketAddress local = InetSocketAddress (dev->GetAddress(), m_port);
-      socket->Bind(local) ;
-	if (addressUtils::IsMulticast (local)) {
-		{
-		  Ptr<UdpSocket> udpSocket = DynamicCast<UdpSocket> (socket);
-		  if (udpSocket)
-		    {
-		      printf("Setting up that multicast");
-		      // equivalent to setsockopt (MCAST_JOIN_GROUP)
-		      udpSocket->MulticastJoinGroup (0, local);
-		    }
-		  else
-		    {
-		      NS_FATAL_ERROR ("Error: Failed to join multicast group");
-		    }
-		}
-	}
-
-      /*	      
-      if (addressUtils::IsMulticast (m_local))
-        {
-          Ptr<UdpSocket> udpSocket = DynamicCast<UdpSocket> (socket);
-          if (udpSocket)
-            {
-              // equivalent to setsockopt (MCAST_JOIN_GROUP)
-              udpSocket->MulticastJoinGroup (0, m_local);
-            }
-          else
-            {
-              NS_FATAL_ERROR ("Error: Failed to join multicast group");
-            }
-        }*/
+      socket->BindToNetDevice(dev);
     }
     return socket;
-	
 }
 
 void 
@@ -266,6 +151,7 @@ DRedundancyServer::StopApplication ()
     }
 }
 
+
 void 
 DRedundancyServer::HandleRead (Ptr<Socket> socket)
 {
@@ -273,10 +159,14 @@ DRedundancyServer::HandleRead (Ptr<Socket> socket)
 
   Ptr<Packet> packet;
   Address from;
+
+  //For testing
+  //PrintSocketIP(socket);
+  //End For testing
   while ((packet = socket->RecvFrom (from)))
     {
 
-	VerboseServerReceivePrint(from,packet);
+       VerboseServerReceivePrint(from,packet);
 
       //packet->RemoveAllPacketTags ();
       //packet->RemoveAllByteTags ();

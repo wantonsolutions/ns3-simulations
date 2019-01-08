@@ -69,6 +69,7 @@ private:
   void HandleRead (Ptr<Socket> socket);
   void VerboseServerSendPrint(Address from, Ptr<Packet> packet);
   void VerboseServerReceivePrint(Address from, Ptr<Packet> packet);
+  void PrintSocketIP( Ptr<Socket> socket);
 
   /*
    * connect to a socket and return it
