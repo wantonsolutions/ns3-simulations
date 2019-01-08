@@ -112,6 +112,8 @@ DRedundancyServer::StartApplication (void)
 	m_sockets[i] = ConnectSocket(m_port,dev);
 	m_sockets[i]->SetRecvCallback (MakeCallback (&DRedundancyServer::HandleRead, this));
 	m_sockets[i]->SetAllowBroadcast (true);
+	//TODO remove if a single socket does not cut it
+	break;
 	//PrintSocketIP(m_sockets[i]);
 
 
@@ -126,10 +128,17 @@ DRedundancyServer::ConnectSocket(uint16_t port, Ptr<NetDevice> dev) {
   Ptr<Socket> socket;
   if (socket == 0)
     {
-	    printf("Setting up server sockets");
+	    printf("Setting up server sockets\n");
       TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
       socket = Socket::CreateSocket (GetNode (), tid);
-      socket->BindToNetDevice(dev);
+
+      InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), port);
+      //InetSocketAddress local = InetSocketAddress (Ipv4Address::ConvertFrom(dev->GetAddress()), port);
+      if (socket->Bind (local) == -1)
+        {
+          NS_FATAL_ERROR ("Failed to bind socket");
+        }
+      //socket->BindToNetDevice(dev);
     }
     return socket;
 }
@@ -149,6 +158,32 @@ DRedundancyServer::StopApplication ()
       m_socket6->Close ();
       m_socket6->SetRecvCallback (MakeNullCallback<void, Ptr<Socket> > ());
     }
+}
+
+void
+DRedundancyServer::BroadcastWrite(Ptr<Packet> packet, Ptr<Socket> socket, Address from) {
+	//This function calculates the IP's that the packet was not received on, and
+	//broadcasts the packet back over those channels.
+	InetSocketAddress addr = InetSocketAddress::ConvertFrom (from).GetIpv4 ();
+	NS_LOG_INFO( "Address value " << addr.GetIpv4().Get() );
+	int mask = 0x00FF0000;
+	int invmask = 0xFF00FFFF;
+	int hitIndex = ((addr.GetIpv4().Get() & mask) >> 16);
+	NS_LOG_INFO( "Addr Key " << hitIndex);
+	for (int i =1; i <= m_parallel; i++) {
+		//if (i != hitIndex) {
+			NS_LOG_INFO("Slow Index "<< i);
+			int newAddr32 = (addr.GetIpv4().Get() & invmask) + (i << 16);
+			Ipv4Address tmpAddr = addr.GetIpv4();
+			tmpAddr.Set(newAddr32);
+			addr.SetIpv4(tmpAddr);
+			addr.SetPort(InetSocketAddress::ConvertFrom (from).GetPort ());
+	      		socket->SendTo (packet, 0, addr);
+			VerboseServerSendPrint(addr,packet);
+		//
+	}
+
+
 }
 
 
@@ -178,8 +213,9 @@ DRedundancyServer::HandleRead (Ptr<Socket> socket)
       if (!served_requests[requestIndex]) {
 	      NS_LOG_INFO("First time request " << requestIndex << " Has arrived, responding");
 	      served_requests[requestIndex] = true;
-	      //TODO broadcast back to many IP's
-	      socket->SendTo (packet, 0, from);
+	      BroadcastWrite(packet,socket,from);
+	      //TODO broadcast back to many IP
+	      //socket->SendTo (packet, 0, from);
 	      VerboseServerSendPrint(from,packet);
       } else {
 	      NS_LOG_INFO("Request " << requestIndex << " Has allready been serviced");

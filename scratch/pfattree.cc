@@ -26,7 +26,7 @@ NS_LOG_COMPONENT_DEFINE ("VarClients");
 
 
 const int K = 4;
-const int PARALLEL = 4;
+const int PARALLEL = 2;
 
 const int PODS = K;
 const int PERPOD = (K/2);

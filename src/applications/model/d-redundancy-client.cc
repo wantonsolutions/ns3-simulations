@@ -428,20 +428,9 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 	      if (m_peerPort == 11) {
 	      	NS_LOG_INFO(difference.GetNanoSeconds());
 	      }
+	      VerboseReceiveLogging(from,packet);
       }
-      if (InetSocketAddress::IsMatchingType (from))
-	{
-	  NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds () << "s client received " << packet->GetSize () << " bytes from " <<
-		       InetSocketAddress::ConvertFrom (from).GetIpv4 () << " port " <<
-		       InetSocketAddress::ConvertFrom (from).GetPort ());
-	}
-      else if (Inet6SocketAddress::IsMatchingType (from))
-	{
-	  NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds () << "s client received " << packet->GetSize () << " bytes from " <<
-		       Inet6SocketAddress::ConvertFrom (from).GetIpv6 () << " port " <<
-		       Inet6SocketAddress::ConvertFrom (from).GetPort ());
-	}
-      }
+    }
 }
 
 void DRedundancyClient::VerboseSendLogging(Address to) {
@@ -467,4 +456,19 @@ void DRedundancyClient::VerboseSendLogging(Address to) {
     }
 }
 
+void
+DRedundancyClient::VerboseReceiveLogging(Address from, Ptr<Packet> packet) {
+      if (InetSocketAddress::IsMatchingType (from))
+	{
+	  NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds () << "s client received " << packet->GetSize () << " bytes from " <<
+		       InetSocketAddress::ConvertFrom (from).GetIpv4 () << " port " <<
+		       InetSocketAddress::ConvertFrom (from).GetPort ());
+	}
+      else if (Inet6SocketAddress::IsMatchingType (from))
+	{
+	  NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds () << "s client received " << packet->GetSize () << " bytes from " <<
+		       Inet6SocketAddress::ConvertFrom (from).GetIpv6 () << " port " <<
+		       Inet6SocketAddress::ConvertFrom (from).GetPort ());
+	}
+}
 } // Namespace ns3
