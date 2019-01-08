@@ -202,7 +202,7 @@ DRedundancyClient::StartApplication (void)
   m_sockets = new Ptr<Socket>[m_parallel];
   ScheduleTransmit (Seconds (0.));
   for (int i=0;i<m_parallel;i++) {
-	printf("Starting application setting up socket %d\n",i);
+	NS_LOG_INFO("Starting application setting up socket " << i);
 	Ptr<Node> n = GetNode();
 	Ptr<NetDevice> dev = n->GetDevice(i);
 	m_sockets[i] = ConnectSocket(m_peerAddresses[i],m_peerPort,dev);
@@ -383,7 +383,7 @@ DRedundancyClient::Send (void)
   //PdcpTag idtag;
   Ipv4PacketInfoTag idtag;
   idtag.SetRecvIf(m_sent);
-  printf("request Index: %d\n",idtag.GetRecvIf());
+  NS_LOG_INFO("request Index: " <<idtag.GetRecvIf());
   //printf("Sending Packet %d\n",m_sent);
   p->AddPacketTag(idtag);
   d_requests[m_sent % REQUEST_BUFFER_SIZE] = Simulator::Now();
@@ -416,17 +416,31 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
   Address from;
   while ((packet = socket->RecvFrom (from)))
     {
-	    printf("RECEIVED CLIENT!\n");
       if (packet->PeekPacketTag(idtag)) {
-	      //NS_LOG_INFO("Tag ID" << idtag.GetSenderTimestamp());
-	      //NS_LOG_INFO("timestamp index " << idtag.GetSenderTimestamp().GetNanoSeconds());
-	      //int requestIndex = int(idtag.GetSenderTimestamp().GetNanoSeconds()) % REQUEST_BUFFER_SIZE;
+
+	      //Packet takes are enumerated over a ring the size of
+	      //REQUEST_BUFFER_SIZE 
+	      //TODO develop a custom tag for the protocols
+	      //which sends the max, and min values along with the request
+	      //index so that the state on the server can be relieved.
+	      
 	      int requestIndex = int(idtag.GetRecvIf()) % REQUEST_BUFFER_SIZE;
-	      printf("request Index: %d\n",requestIndex);
-	      //printf("index %d\n",requestIndex);
-              Time difference = Simulator::Now() - d_requests[requestIndex];
-	      if (m_peerPort == 11) {
-	      	NS_LOG_INFO(difference.GetNanoSeconds());
+	      NS_LOG_FUNCTION("request Index: " << requestIndex);
+	      if (d_requests[requestIndex] > Time(0)) {
+		      NS_LOG_INFO("New Client Response " << requestIndex << " Received");
+		      Time difference = Simulator::Now() - d_requests[requestIndex];
+		      d_requests[requestIndex] = Time(0);
+
+		      //Peers connected on port 11 are the ones being monitered. The
+		      //differnece time being logged is the end to end latency of a
+		      //request.
+		      //TODO Add bandwidth to the measure of each request.
+		      
+		      if (m_peerPort == 11) {
+			NS_LOG_INFO(difference.GetNanoSeconds());
+		      }
+	      } else {
+		      NS_LOG_INFO("Old Client Response " << requestIndex << " Received");
 	      }
 	      VerboseReceiveLogging(from,packet);
       }

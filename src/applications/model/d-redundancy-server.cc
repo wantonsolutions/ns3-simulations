@@ -63,16 +63,6 @@ DRedundancyServer::GetTypeId (void)
   return tid;
 }
 
-//TODO this is a broken function and should probably be removed.
-void
-DRedundancyServer::PrintSocketIP(Ptr<Socket> socket) {
-  //Ptr<NetDevice> nd = socket->GetBoundNetDevice();
-  //Address addr = nd->GetAddress();
-  Address addr;
-  socket->GetPeerName (addr);
-  InetSocketAddress iaddr = InetSocketAddress::ConvertFrom (addr); 
-  NS_LOG_INFO(iaddr.GetIpv4 () << ":" << iaddr.GetPort ());
-}
 
 DRedundancyServer::DRedundancyServer ()
 {
@@ -83,10 +73,11 @@ DRedundancyServer::~DRedundancyServer()
 {
   NS_LOG_FUNCTION (this);
   m_socket = 0;
-  m_socket6 = 0;
 
+  //Min and Max refer to the minumum and maximum request values received. These are yet to be implemented but will act as a high water mark in the future.
   min = 0;
   max = 0;
+  //none of the requests have been served at init time, set each to false.
   for (int i=0;i<SERVICE_BUFFER_SIZE;i++) {
 	  served_requests[i] = false;
   }
@@ -103,10 +94,11 @@ void
 DRedundancyServer::StartApplication (void)
 {
   NS_LOG_FUNCTION (this);
+  //Initalize parallel sockets
   m_sockets = new Ptr<Socket>[m_parallel];
-  //ScheduleTransmit (Seconds (0.));
   for (int i=0;i<m_parallel;i++) {
 	printf("Starting application setting up socket %d\n",i);
+	//connect a seperate socket to each of the net devices attacehd to the server node
 	Ptr<Node> n = GetNode();
 	Ptr<NetDevice> dev = n->GetDevice(i);
 	m_sockets[i] = ConnectSocket(m_port,dev);
@@ -114,13 +106,11 @@ DRedundancyServer::StartApplication (void)
 	m_sockets[i]->SetAllowBroadcast (true);
 	//TODO remove if a single socket does not cut it
 	break;
-	//PrintSocketIP(m_sockets[i]);
+	//This may still be usefull, buf for the moment only a single socket is used while listening because all of the client traffic is forwarded to it.
 
 
   }
 
-  //m_socket->SetRecvCallback (MakeCallback (&DRedundancyServer::HandleRead, this));
-  //m_socket6->SetRecvCallback (MakeCallback (&DRedundancyServer::HandleRead, this));
 }
 
 Ptr<Socket>
@@ -128,17 +118,15 @@ DRedundancyServer::ConnectSocket(uint16_t port, Ptr<NetDevice> dev) {
   Ptr<Socket> socket;
   if (socket == 0)
     {
-	    printf("Setting up server sockets\n");
+      NS_LOG_INFO("Setting up server sockets\n");
       TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
       socket = Socket::CreateSocket (GetNode (), tid);
 
       InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), port);
-      //InetSocketAddress local = InetSocketAddress (Ipv4Address::ConvertFrom(dev->GetAddress()), port);
       if (socket->Bind (local) == -1)
         {
           NS_FATAL_ERROR ("Failed to bind socket");
         }
-      //socket->BindToNetDevice(dev);
     }
     return socket;
 }
@@ -166,24 +154,26 @@ DRedundancyServer::BroadcastWrite(Ptr<Packet> packet, Ptr<Socket> socket, Addres
 	//broadcasts the packet back over those channels.
 	InetSocketAddress addr = InetSocketAddress::ConvertFrom (from).GetIpv4 ();
 	NS_LOG_INFO( "Address value " << addr.GetIpv4().Get() );
+
+	//The third unit of the IP address is used for paralleization i.e.
+	//X.Y.X.X, the Y digit will be used to broadcast in parallel. This
+	//function determines which of the parallel chanels the packet was
+	//received on and then broadcasts across the rest.
+	
 	int mask = 0x00FF0000;
 	int invmask = 0xFF00FFFF;
 	int hitIndex = ((addr.GetIpv4().Get() & mask) >> 16);
 	NS_LOG_INFO( "Addr Key " << hitIndex);
+	//TODO there is probably a cleaner way to do this by just casting the from address rather than re-initalizing
 	for (int i =1; i <= m_parallel; i++) {
-		//if (i != hitIndex) {
-			NS_LOG_INFO("Slow Index "<< i);
-			int newAddr32 = (addr.GetIpv4().Get() & invmask) + (i << 16);
-			Ipv4Address tmpAddr = addr.GetIpv4();
-			tmpAddr.Set(newAddr32);
-			addr.SetIpv4(tmpAddr);
-			addr.SetPort(InetSocketAddress::ConvertFrom (from).GetPort ());
-	      		socket->SendTo (packet, 0, addr);
-			VerboseServerSendPrint(addr,packet);
-		//
+		int newAddr32 = (addr.GetIpv4().Get() & invmask) + (i << 16);
+		Ipv4Address tmpAddr = addr.GetIpv4();
+		tmpAddr.Set(newAddr32);
+		addr.SetIpv4(tmpAddr);
+		addr.SetPort(InetSocketAddress::ConvertFrom (from).GetPort ());
+		socket->SendTo (packet, 0, addr);
+		VerboseServerSendPrint(addr,packet);
 	}
-
-
 }
 
 
@@ -195,9 +185,6 @@ DRedundancyServer::HandleRead (Ptr<Socket> socket)
   Ptr<Packet> packet;
   Address from;
 
-  //For testing
-  //PrintSocketIP(socket);
-  //End For testing
   while ((packet = socket->RecvFrom (from)))
     {
 
@@ -208,14 +195,13 @@ DRedundancyServer::HandleRead (Ptr<Socket> socket)
       
       Ipv4PacketInfoTag idtag;
       packet->PeekPacketTag(idtag);
+      //TODO maintain high and low watermark with at seperate tag
       int requestIndex = idtag.GetRecvIf();
 
       if (!served_requests[requestIndex]) {
 	      NS_LOG_INFO("First time request " << requestIndex << " Has arrived, responding");
 	      served_requests[requestIndex] = true;
 	      BroadcastWrite(packet,socket,from);
-	      //TODO broadcast back to many IP
-	      //socket->SendTo (packet, 0, from);
 	      VerboseServerSendPrint(from,packet);
       } else {
 	      NS_LOG_INFO("Request " << requestIndex << " Has allready been serviced");
