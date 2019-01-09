@@ -24,6 +24,7 @@
 #include "ns3/ptr.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/traced-callback.h"
+#include "raid.h"
 
 namespace ns3 {
 
@@ -170,6 +171,9 @@ private:
   void HandleRead (Ptr<Socket> socket);
   void VerboseReceiveLogging(Address from, Ptr<Packet> packet);
 
+
+  Ptr<Socket> ConnectSocket(uint16_t port, Ptr<NetDevice> dev);
+
   uint32_t m_count; //!< Maximum number of packets the application will send
   Time m_interval; //!< Packet inter-send time
   uint32_t m_size; //!< Size of the sent packet
@@ -189,6 +193,9 @@ private:
   uint16_t m_peerPort; //!< Remote peer port
   EventId m_sendEvent; //!< Event to send the next packet
   uint8_t m_parallel; //!< Level of paralalelization in the fat tree
+
+
+  RaidState* m_rs;
 
   /// Callbacks for tracing the packet Tx events
   TracedCallback<Ptr<const Packet> > m_txTrace;

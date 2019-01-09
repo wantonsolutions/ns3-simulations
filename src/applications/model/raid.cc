@@ -46,12 +46,10 @@ Ptr<Packet> RaidReceive(Ptr<Packet> packet, Address from, RaidState *rs, int par
       Ptr<Packet> p;
       switch (state) {
 	case RAID_INCOMPLETE:
-		printf("Request %d Still waiting for data\n",requestIndex);
 		return NULL;
 	case RAID_FIXABLE:
 		p = FixPacket(requestIndex,parallel,rs);
 	case RAID_COMPLETE:
-		printf("RAID_COMPLETE returned preparing to merge packet\n");
 		p = MergePacket(requestIndex,parallel,rs);
 		//NS_LOG_INFO("Server Reconstructed Raid Packet %d requestIndex Data: %s"requestIndex, p->ToString());
       }
@@ -63,7 +61,7 @@ Ptr<Packet> RaidReceive(Ptr<Packet> packet, Address from, RaidState *rs, int par
 Ptr<Packet>* StripePacket(int parallel, uint32_t size, uint32_t sent, uint8_t* data) {
 
   Ptr<Packet> *packets = new Ptr<Packet> [parallel];
-  printf("Size %d Parallel %d size mod %d\n",size,parallel,size%(parallel-1));
+  //printf("Size %d Parallel %d size mod %d\n",size,parallel,size%(parallel-1));
   NS_ASSERT_MSG(size % (parallel - 1) == 0, "Raid only works on data which can be equally striped across packets and parity. Assert - > DataSize % (Parallel - 1) = 0");
 
   int raidPacketSize = size / (parallel - 1);
@@ -108,7 +106,7 @@ int GetRaidFlowState(int requestIndex, int parallel, RaidState *rs) {
 			totalReceived++;
 		}
 	}
-	printf("Total Received for %d is %d\n",requestIndex,totalReceived );
+	//printf("Total Received for %d is %d\n",requestIndex,totalReceived );
 	//all packets have been received
 	if (totalReceived == parallel-1) {
 		return RAID_COMPLETE;
@@ -170,13 +168,13 @@ Ptr<Packet> MergePacket(int requestIndex, int parallel, RaidState *rs) {
 			printf("Data Missing from raided packet %d continuing",i);
 		}
 	}
-	printf("%s\n",buf);
+	//printf("%s\n",buf);
 	Ptr<Packet> p =  new Packet(buf,raidPacketSize*(parallel-1));
 	return p;
 
 }
 
-void RaidWrite(Ptr<Packet>* packets, Ptr<Socket> socket, Address to, int parallel) {
+void RaidWrite(int requestIndex, RaidState *rs, Ptr<Packet>* packets, Ptr<Socket> socket, Address to, int parallel) {
 	//This function calculates the IP's that the packet was not received on, and
 	//broadcasts the packet back over those channels.
 	InetSocketAddress addr = InetSocketAddress::ConvertFrom (to).GetIpv4 ();
@@ -190,14 +188,16 @@ void RaidWrite(Ptr<Packet>* packets, Ptr<Socket> socket, Address to, int paralle
 	int invmask = 0xFF00FFFF;
 	//NS_LOG_INFO( "Addr Key " << hitIndex);
 	//TODO there is probably a cleaner way to do this by just casting the to address rather than re-initalizing
-	for (int i =1; i <= parallel; i++) {
-		printf("Server Sending \n");
+	for (int i =1; i <= parallel-1; i++) {
+		//printf("Server Sending \n");
 		int newAddr32 = (addr.GetIpv4().Get() & invmask) + (i << 16);
 		Ipv4Address tmpAddr = addr.GetIpv4();
 		tmpAddr.Set(newAddr32);
 		addr.SetIpv4(tmpAddr);
-		addr.SetPort(InetSocketAddress::ConvertFrom (to).GetPort ());
-		socket->SendTo (packets[i-1], 0, addr);
+		//addr.SetPort(InetSocketAddress::ConvertFrom (to).GetPort ());
+		addr.SetPort(19);
+		//socket->SendTo (packets[i-1], 0, addr);
+		socket->SendTo(rs->Served_Raid_Packets[requestIndex][i-1],0,addr);
 		//VerboseServerSendPrint(addr,packets[i-1]);
 	}
 }

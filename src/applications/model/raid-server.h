@@ -88,8 +88,6 @@ void BroadcastWrite(Ptr<Packet> packet, Ptr<Socket> socket, Address from);
   uint8_t m_parallel;
   Address m_local; //!< local multicast address //Todo get multiple addresses
 
-  bool **m_served_raid_requests;
-  Ptr<Packet> **m_served_raid_packets;
   RaidState *m_rs;
 
 

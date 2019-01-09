@@ -41,7 +41,7 @@ struct RaidState {
 
 RaidState* InitRaidState(int parallel);
 Ptr<Packet> RaidReceive(Ptr<Packet> packet, Address from, RaidState *rs, int parallel);
-void RaidWrite(Ptr<Packet>* packets, Ptr<Socket> socket, Address to, int parallel);
+void RaidWrite(int requestIndex,RaidState *rs, Ptr<Packet>* packets, Ptr<Socket> socket, Address to, int parallel);
 int GetHitIndex(Address from, int requestIndex);
 Ptr<Packet>* StripePacket(int parallel, uint32_t size, uint32_t sent, uint8_t* data);
 int GetRaidFlowState(int requestIndex, int parallel, RaidState *rs);

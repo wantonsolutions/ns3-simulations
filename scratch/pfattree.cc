@@ -47,8 +47,9 @@ main (int argc, char *argv[])
   cmd.Parse (argc, argv);
   
   Time::SetResolution (Time::NS);
-  LogComponentEnable ("RaidClientApplication", LOG_LEVEL_INFO);
-  LogComponentEnable ("RaidServerApplication", LOG_LEVEL_INFO);
+  LogComponentEnable ("RaidClientApplication", LOG_LEVEL_WARN);
+  //LogComponentEnable ("RaidClientApplication", LOG_LEVEL_INFO);
+  //LogComponentEnable ("RaidServerApplication", LOG_LEVEL_INFO);
 
   NodeContainer nodes;
   nodes.Create (NODES);

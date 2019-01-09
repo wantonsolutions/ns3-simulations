@@ -41,6 +41,7 @@
 namespace ns3 {
 	
 	Time raid_requests[RAID_REQUEST_SIZE];
+	int raid_requests_count[RAID_REQUEST_SIZE];
 
 
 NS_LOG_COMPONENT_DEFINE ("RaidClientApplication");
@@ -194,6 +195,24 @@ RaidClient::DoDispose (void)
   Application::DoDispose ();
 }
 
+Ptr<Socket>
+RaidClient::ConnectSocket(uint16_t port, Ptr<NetDevice> dev) {
+  Ptr<Socket> socket;
+  if (socket == 0)
+    {
+      NS_LOG_INFO("Setting up server sockets\n");
+      TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
+      socket = Socket::CreateSocket (GetNode (), tid);
+
+      InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), port);
+      if (socket->Bind (local) == -1)
+        {
+          NS_FATAL_ERROR ("Failed to bind socket");
+        }
+    }
+    return socket;
+}
+
 void 
 RaidClient::StartApplication (void)
 {
@@ -209,6 +228,16 @@ RaidClient::StartApplication (void)
 	m_sockets[i]->SetRecvCallback (MakeCallback (&RaidClient::HandleRead, this));
 	m_sockets[i]->SetAllowBroadcast (true);
   }
+//listen socket
+	Ptr<Node> n = GetNode();
+	Ptr<NetDevice> dev = n->GetDevice(0);
+	m_socket = ConnectSocket(19,dev);
+	m_socket->SetRecvCallback (MakeCallback (&RaidClient::HandleRead, this));
+	m_socket->SetAllowBroadcast (true);
+
+   for (int i=0;i<RAID_REQUEST_SIZE;i++) {
+	   raid_requests_count[i] = 0;
+   }
 }
 
 
@@ -375,7 +404,6 @@ RaidClient::Send (void)
   }
   if (m_sent < m_count) 
     {
-      printf("Scheduling next Transmission for %d in the future\n",int(m_interval.GetNanoSeconds()));
       ScheduleTransmit (m_interval);
     }
 	
@@ -391,7 +419,6 @@ RaidClient::HandleRead (Ptr<Socket> socket)
   NS_LOG_INFO("Waiting for a socket to be received on!!");
   while ((packet = socket->RecvFrom (from)))
     {
-	    printf("Client Receive!!");
       if (packet->PeekPacketTag(idtag)) {
 
 	      //Packet takes are enumerated over a ring the size of
@@ -403,17 +430,23 @@ RaidClient::HandleRead (Ptr<Socket> socket)
 	      int requestIndex = int(idtag.GetRecvIf()) % RAID_REQUEST_SIZE;
 	      NS_LOG_FUNCTION("request Index: " << requestIndex);
 	      if (raid_requests[requestIndex] > Time(0)) {
-		      NS_LOG_INFO("New Client Response " << requestIndex << " Received");
-		      Time difference = Simulator::Now() - raid_requests[requestIndex];
-		      raid_requests[requestIndex] = Time(0);
+		      raid_requests_count[requestIndex]++;
+	              NS_LOG_INFO("Partial RAID Response Received! " << requestIndex << " Received");
+		      if (raid_requests_count[requestIndex] >= (m_parallel -1)) {
 
-		      //Peers connected on port 11 are the ones being monitered. The
-		      //differnece time being logged is the end to end latency of a
-		      //request.
-		      //TODO Add bandwidth to the measure of each request.
-		      
-		      if (m_peerPort == 11) {
-			NS_LOG_INFO(difference.GetNanoSeconds());
+			      NS_LOG_INFO("RAID Response Received! " << requestIndex << " Received");
+			      Time difference = Simulator::Now() - raid_requests[requestIndex];
+			      raid_requests[requestIndex] = Time(0);
+
+			      //Peers connected on port 11 are the ones being monitered. The
+			      //differnece time being logged is the end to end latency of a
+			      //request.
+			      //TODO Add bandwidth to the measure of each request.
+			        NS_LOG_WARN(difference.GetNanoSeconds()); 
+				NS_LOG_INFO(difference.GetNanoSeconds());
+			      if (m_peerPort == 11) {
+				NS_LOG_INFO(difference.GetNanoSeconds());
+			      }
 		      }
 	      } else {
 		      NS_LOG_INFO("Old Client Response " << requestIndex << " Received");

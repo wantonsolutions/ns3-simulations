@@ -95,7 +95,6 @@ RaidServer::StartApplication (void)
   //Initalize parallel sockets
   m_sockets = new Ptr<Socket>[m_parallel];
   for (int i=0;i<m_parallel;i++) {
-	printf("Starting application setting up socket %d\n",i);
 	//connect a seperate socket to each of the net devices attacehd to the server node
 	Ptr<Node> n = GetNode();
 	Ptr<NetDevice> dev = n->GetDevice(i);
@@ -206,13 +205,12 @@ RaidServer::HandleRead (Ptr<Socket> socket)
        uint8_t *data = new uint8_t[p->GetSize()];
        p->CopyData(data,p->GetSize());
        Ptr<Packet> *rpackets = StripePacket(m_parallel, p->GetSize(),requestIndex, data);
-       RaidWrite(rpackets,socket,from,m_parallel);
+       RaidWrite(requestIndex,m_rs,rpackets,socket,from,m_parallel);
 
 
 	InetSocketAddress addr = InetSocketAddress::ConvertFrom (from).GetIpv4 ();
 	int invmask = 0xFF00FFFF;
 	for (int i =1; i <= m_parallel; i++) {
-		printf("Server Sending \n");
 		int newAddr32 = (addr.GetIpv4().Get() & invmask) + (i << 16);
 		Ipv4Address tmpAddr = addr.GetIpv4();
 		tmpAddr.Set(newAddr32);
