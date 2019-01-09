@@ -28,6 +28,7 @@
 #include "ns3/uinteger.h"
 #include "ns3/trace-source-accessor.h"
 #include "raid-client.h"
+#include "raid.h"
 
 //#include "ns3/lte-pdcp-tag.h"
 #include "ns3/ipv4-packet-info-tag.h"
@@ -35,12 +36,11 @@
 #include <iostream>
 #include <fstream>
 
-#define REQUEST_BUFFER_SIZE 4096
 
 
 namespace ns3 {
 	
-	Time raid_requests[REQUEST_BUFFER_SIZE];
+	Time raid_requests[RAID_REQUEST_SIZE];
 
 
 NS_LOG_COMPONENT_DEFINE ("RaidClientApplication");
@@ -355,89 +355,21 @@ RaidClient::Send (void)
   Ptr<Packet> p;
   if (m_dataSize)
     {
-      //
-      // If m_dataSize is non-zero, we have a data buffer of the same size that we
-      // are expected to copy and send.  This state of affairs is created if one of
-      // the Fill functions is called.  In this case, m_size must have been set
-      // to agree with m_dataSize
-      //
       NS_ASSERT_MSG (m_dataSize == m_size, "RaidClient::Send(): m_size and m_dataSize inconsistent");
       NS_ASSERT_MSG (m_data, "RaidClient::Send(): m_dataSize but no m_data");
       p = Create<Packet> (m_data, m_dataSize);
     }
   else
     {
-      //
-      // If m_dataSize is zero, the client has indicated that it doesn't care
-      // about the data itself either by specifying the data size by setting
-      // the corresponding attribute or by not calling a SetFill function.  In
-      // this case, we don't worry about it either.  But we do allow m_size
-      // to have a value different from the (zero) m_dataSize.
-      //
       p = Create<Packet> (m_size);
     }
-  // call to the trace sinks before the packet is actually sent,
-  // so that tags added to the packet can be sent as well
   
-  //Initalize a raid array of packets
-  Ptr<Packet> *packets = new Ptr<Packet> [m_parallel];
-  printf("Size %d Parallel %d m_datSize mod %d\n",m_dataSize,m_parallel,m_dataSize%(m_parallel-1));
-  NS_ASSERT_MSG(m_dataSize % (m_parallel - 1) == 0, "Raid only works on data which can be equally striped across packets and parity. Assert - > DataSize % (Parallel - 1) = 0");
-
-  int raidPacketSize = m_size / (m_parallel - 1);
-  uint8_t **dataStripes = new uint8_t *[m_parallel];
-  for (int i=0;i<m_parallel;i++) {
-	  printf("Stripe Number %d getting allocked\n",i);
-	  dataStripes[i] = new uint8_t[raidPacketSize];
-  }
-  //cpy raided components
-  for (int i=0;i<(m_parallel-1);i++) {
-	  printf("Strpe %d",dataStripes[i][0]);
-	  printf("Data ptr %s",&m_data[i*raidPacketSize]);
-	  printf("\n");
-	  memcpy(dataStripes[i],&m_data[i*raidPacketSize],raidPacketSize);
-  }
-  //Calculate the raide byte
-  for (int i=0;i<raidPacketSize;i++) {
-	  uint8_t rchunk = dataStripes[0][i];
-	  for (int j=1;j<(m_parallel-1);j++) {
-		  rchunk = rchunk ^ dataStripes[j][i];
-	  }
-	  dataStripes[m_parallel-1][i] = rchunk;
-  }
-  //Print for testing purposes
-  for (int i=0;i<m_parallel;i++) {
-	  for (int j = 0;j<raidPacketSize;j++) {
-		  printf("%3x",dataStripes[i][j]);
-	  }
-	  printf("\n");
-  }
-  //Load the packets
-  for (int i=0;i<m_parallel;i++) {
-          packets[i] = Create<Packet> (dataStripes[i], raidPacketSize);
-	  //PdcpTag idtag;
-	  Ipv4PacketInfoTag idtag;
-	  idtag.SetRecvIf(m_sent);
-	  NS_LOG_INFO("request Index: " <<idtag.GetRecvIf());
-	  //printf("Sending Packet %d\n",m_sent);
-	  packets[i]->AddPacketTag(idtag);
-  }
-  
-  
-  raid_requests[m_sent % REQUEST_BUFFER_SIZE] = Simulator::Now();
-
-    // inserting values by using [] operator 
-    //umap["GeeksforGeeks"] = 10; 
-    //umap["Practice"] = 20; 
-    //umap["Contribute"] = 30; 
+  Ptr<Packet> *packets = StripePacket(m_parallel, m_size, m_sent, m_data);
+  raid_requests[m_sent % RAID_REQUEST_SIZE] = Simulator::Now();
 
   m_sent++;
   m_txTrace (p);
   for (int i=0;i<m_parallel;i++) {
-	  //for testing the raid controller
-	  if (i == 2) {
-		  continue;
-	  }
   	m_sockets[i]->Send (packets[i]);
 	VerboseSendLogging(m_peerAddresses[i]);
   }
@@ -456,17 +388,19 @@ RaidClient::HandleRead (Ptr<Socket> socket)
   Ptr<Packet> packet;
   Ipv4PacketInfoTag idtag;
   Address from;
+  NS_LOG_INFO("Waiting for a socket to be received on!!");
   while ((packet = socket->RecvFrom (from)))
     {
+	    printf("Client Receive!!");
       if (packet->PeekPacketTag(idtag)) {
 
 	      //Packet takes are enumerated over a ring the size of
-	      //REQUEST_BUFFER_SIZE 
+	      //RAID_REQUEST_SIZE 
 	      //TODO develop a custom tag for the protocols
 	      //which sends the max, and min values along with the request
 	      //index so that the state on the server can be relieved.
 	      
-	      int requestIndex = int(idtag.GetRecvIf()) % REQUEST_BUFFER_SIZE;
+	      int requestIndex = int(idtag.GetRecvIf()) % RAID_REQUEST_SIZE;
 	      NS_LOG_FUNCTION("request Index: " << requestIndex);
 	      if (raid_requests[requestIndex] > Time(0)) {
 		      NS_LOG_INFO("New Client Response " << requestIndex << " Received");

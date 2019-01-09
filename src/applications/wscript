@@ -25,6 +25,7 @@ def build(bld):
 	'model/raid-client.cc',
 	'model/raid-server.cc',
 	'helper/raid-helper.cc',
+	'model/raid.cc'
 
 
         ]
@@ -59,6 +60,7 @@ def build(bld):
 	'model/raid-client.h',
 	'model/raid-server.h',
 	'helper/raid-helper.h',
+	'model/raid.h'
 
         ]
 

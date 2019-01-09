@@ -19,15 +19,12 @@
 #ifndef RAID_SERVER_H
 #define RAID_SERVER_H
 
-#define SERVICE_BUFFER_SIZE 4096
-#define RAID_COMPLETE 1
-#define RAID_FIXABLE 2
-#define RAID_INCOMPLETE 3
 
 #include "ns3/application.h"
 #include "ns3/event-id.h"
 #include "ns3/ptr.h"
 #include "ns3/address.h"
+#include "raid.h"
 
 namespace ns3 {
 
@@ -74,14 +71,10 @@ private:
   void HandleRead (Ptr<Socket> socket);
   void VerboseServerSendPrint(Address from, Ptr<Packet> packet);
   void VerboseServerReceivePrint(Address from, Ptr<Packet> packet);
-
-  void BroadcastWrite(Ptr<Packet> packet, Ptr<Socket> socket, Address from);
   void PrintSocketIP( Ptr<Socket> socket);
-	int GetHitIndex(Address from, int requestIndex);
-	int GetRaidFlowState(int requestIndex);
-	Ptr<Packet> FixPacket(int requestIndex);
-	Ptr<Packet> MergePacket(int requestIndex);
 
+
+void BroadcastWrite(Ptr<Packet> packet, Ptr<Socket> socket, Address from);
   /*
    * connect to a socket and return it
    */
@@ -92,11 +85,12 @@ private:
   Ptr<Socket> m_socket6; //!< IPv6 Socket
 
   Ptr<Socket>* m_sockets;
+  uint8_t m_parallel;
   Address m_local; //!< local multicast address //Todo get multiple addresses
 
-  uint8_t m_parallel;
   bool **m_served_raid_requests;
   Ptr<Packet> **m_served_raid_packets;
+  RaidState *m_rs;
 
 
 };

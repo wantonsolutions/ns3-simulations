@@ -91,15 +91,7 @@ RaidServer::StartApplication (void)
 {
   NS_LOG_FUNCTION (this);
   //Init raid state data
-  m_served_raid_requests = new bool*[SERVICE_BUFFER_SIZE];
-  m_served_raid_packets = new Ptr<Packet>*[SERVICE_BUFFER_SIZE];
-  for (int i=0;i<SERVICE_BUFFER_SIZE;i++) {
-	  m_served_raid_requests[i] = new bool[m_parallel];
-	  m_served_raid_packets[i] = new Ptr<Packet>[m_parallel];
-	  for (int j=0;j<m_parallel;j++) {
-	  	m_served_raid_requests[i][j] = false;
-	  }
-  }
+  m_rs = InitRaidState(m_parallel); 
   //Initalize parallel sockets
   m_sockets = new Ptr<Socket>[m_parallel];
   for (int i=0;i<m_parallel;i++) {
@@ -183,93 +175,7 @@ RaidServer::BroadcastWrite(Ptr<Packet> packet, Ptr<Socket> socket, Address from)
 }
 
 
-int
-RaidServer::GetHitIndex(Address from, int requestIndex) {
-	InetSocketAddress addr = InetSocketAddress::ConvertFrom (from).GetIpv4 ();
-	NS_LOG_INFO( "Address value " << addr.GetIpv4().Get() );
-	int mask = 0x00FF0000;
-	int hitIndex = ((addr.GetIpv4().Get() & mask) >> 16) -1 ;
-	return hitIndex;
-}
 
-int
-RaidServer::GetRaidFlowState(int requestIndex) {
-	int totalReceived = 0;
-	for (int i =0;i<m_parallel-1;i++) {
-		if (m_served_raid_requests[requestIndex][i]) {
-			totalReceived++;
-		}
-	}
-	NS_LOG_INFO("Total Received for " << requestIndex << " is " << totalReceived );
-	//all packets have been received
-	if (totalReceived == m_parallel-1) {
-		return RAID_COMPLETE;
-	//n-1 parity bits have been received, and the parity channel is received
-	} else if (totalReceived == m_parallel-2 && m_served_raid_requests[requestIndex][m_parallel -1]) {
-		NS_LOG_INFO("RAID_FIXABLE");
-		return RAID_FIXABLE;
-	}
-	//Not enough of the raid packets have been received to fix the packet.
-	return RAID_INCOMPLETE;
-}
-
-Ptr<Packet>
-RaidServer::FixPacket(int requestIndex) {
-	NS_LOG_INFO("Fixing Packet Request " << requestIndex );
-	//find missing index
-	int missingIndex;
-	for (int i =0;i<(m_parallel-1);i++) {
-		if (!m_served_raid_requests[requestIndex][i]) {
-			missingIndex=i;
-			break;
-		}
-	}
-	//use the parity index to determine length because we know we have it
-	int raidPacketSize = m_served_raid_packets[requestIndex][m_parallel-1]->GetSize();
-	//Alloc buffers to hold packet data for the raid correction computation
-	uint8_t *repairsbuf = new uint8_t[raidPacketSize];
-	uint8_t **receivedpackets = new uint8_t*[m_parallel-1];
-	for (int i=0;i<m_parallel-1;i++) {
-		receivedpackets[i] = new uint8_t[raidPacketSize];
-	}
-	//working index indexes into the array of received packets, not m_served_raid_packets
-	int workingIndex = 0;
-	for (int i=0;i<m_parallel;i++) {
-		if (i == missingIndex) {
-			continue;
-		}
-		m_served_raid_packets[requestIndex][i]->CopyData(receivedpackets[workingIndex],raidPacketSize);
-		workingIndex++;
-	}
-	  //Calculate the raide byte
-	  for (int i=0;i<raidPacketSize;i++) {
-		  uint8_t rchunk = receivedpackets[0][i];
-		  for (int j=1;j<(m_parallel-1);j++) {
-			  rchunk = rchunk ^ receivedpackets[j][i];
-		  }
-		  repairsbuf[i] = rchunk;
-	  }
-	  m_served_raid_packets[requestIndex][missingIndex] = new Packet(repairsbuf,raidPacketSize);
-	  return MergePacket(requestIndex);
-}
-
-Ptr<Packet>
-RaidServer::MergePacket(int requestIndex) {
-	//Merge the data from the first m_parallel - 1 packets into a single one.
-	int raidPacketSize = m_served_raid_packets[requestIndex][0]->GetSize();
-	uint8_t *buf = new uint8_t[(m_parallel-1) * raidPacketSize];
-	for (int i = 0; i < (m_parallel-1); i++) {
-		int n = m_served_raid_packets[requestIndex][i]->CopyData(&buf[i*raidPacketSize],raidPacketSize);
-		if ( n != raidPacketSize ) {
-			//this is panic mode because there is some data missing somewhere
-			NS_LOG_INFO("Data Missing from raided packet "<< i << "continuing");
-		}
-	}
-	printf("%s\n",buf);
-	Ptr<Packet> p =  new Packet(buf,raidPacketSize*m_parallel);
-	return p;
-
-}
 
 
 void 
@@ -287,32 +193,36 @@ RaidServer::HandleRead (Ptr<Socket> socket)
 
       //packet->RemoveAllPacketTags ();
       //packet->RemoveAllByteTags ();
-      
-      Ipv4PacketInfoTag idtag;
-      packet->PeekPacketTag(idtag);
-      //TODO maintain high and low watermark with at seperate tag
-      int requestIndex = idtag.GetRecvIf();
-      int hitIndex = GetHitIndex(from,requestIndex);
-      m_served_raid_requests[requestIndex][hitIndex] = true;
-      m_served_raid_packets[requestIndex][hitIndex] = packet;
-      int state = GetRaidFlowState(requestIndex);
-      Ptr<Packet> p;
-      switch (state) {
-	case RAID_INCOMPLETE:
-		NS_LOG_INFO("Request " << requestIndex << "Still waiting for data");
-		continue;
-	case RAID_FIXABLE:
-		p = FixPacket(requestIndex);
-	        BroadcastWrite(p,socket,from);
-	        VerboseServerSendPrint(from,packet);
-	case RAID_COMPLETE:
-		continue;
-		NS_LOG_INFO("RAID_COMPLETE returned preparing to merge packet");
-		p = MergePacket(requestIndex);
-		NS_LOG_INFO("Server Reconstructed Raid Packet " << requestIndex << " Data:" << p->ToString());
-	        BroadcastWrite(p,socket,from);
-	      	VerboseServerSendPrint(from,packet);
-      }
+       
+       Ptr<Packet> p = RaidReceive(packet, from, m_rs, m_parallel);
+       if ( p == NULL ) {
+	       continue;
+       }
+
+       Ipv4PacketInfoTag idtag;
+       p->PeekPacketTag(idtag);
+       //TODO maintain high and low watermark with at seperate tag
+       int requestIndex = idtag.GetRecvIf();
+       uint8_t *data = new uint8_t[p->GetSize()];
+       p->CopyData(data,p->GetSize());
+       Ptr<Packet> *rpackets = StripePacket(m_parallel, p->GetSize(),requestIndex, data);
+       RaidWrite(rpackets,socket,from,m_parallel);
+
+
+	InetSocketAddress addr = InetSocketAddress::ConvertFrom (from).GetIpv4 ();
+	int invmask = 0xFF00FFFF;
+	for (int i =1; i <= m_parallel; i++) {
+		printf("Server Sending \n");
+		int newAddr32 = (addr.GetIpv4().Get() & invmask) + (i << 16);
+		Ipv4Address tmpAddr = addr.GetIpv4();
+		tmpAddr.Set(newAddr32);
+		addr.SetIpv4(tmpAddr);
+		addr.SetPort(InetSocketAddress::ConvertFrom (from).GetPort ());
+		VerboseServerSendPrint(addr,rpackets[i-1]);
+	}
+
+
+       
 
    }
 }
