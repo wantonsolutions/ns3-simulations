@@ -434,6 +434,10 @@ RaidClient::Send (void)
   m_sent++;
   m_txTrace (p);
   for (int i=0;i<m_parallel;i++) {
+	  //for testing the raid controller
+	  if (i == 2) {
+		  continue;
+	  }
   	m_sockets[i]->Send (packets[i]);
 	VerboseSendLogging(m_peerAddresses[i]);
   }

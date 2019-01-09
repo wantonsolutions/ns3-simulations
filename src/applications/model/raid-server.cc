@@ -196,15 +196,17 @@ int
 RaidServer::GetRaidFlowState(int requestIndex) {
 	int totalReceived = 0;
 	for (int i =0;i<m_parallel-1;i++) {
-		if (m_served_raid_requests[i]) {
+		if (m_served_raid_requests[requestIndex][i]) {
 			totalReceived++;
 		}
 	}
+	NS_LOG_INFO("Total Received for " << requestIndex << " is " << totalReceived );
 	//all packets have been received
 	if (totalReceived == m_parallel-1) {
 		return RAID_COMPLETE;
 	//n-1 parity bits have been received, and the parity channel is received
-	} else if (totalReceived == m_parallel-2 && m_served_raid_requests[m_parallel -1]) {
+	} else if (totalReceived == m_parallel-2 && m_served_raid_requests[requestIndex][m_parallel -1]) {
+		NS_LOG_INFO("RAID_FIXABLE");
 		return RAID_FIXABLE;
 	}
 	//Not enough of the raid packets have been received to fix the packet.
@@ -213,14 +215,58 @@ RaidServer::GetRaidFlowState(int requestIndex) {
 
 Ptr<Packet>
 RaidServer::FixPacket(int requestIndex) {
-	Ptr<Packet> p;
-	return p;
-
+	NS_LOG_INFO("Fixing Packet Request " << requestIndex );
+	//find missing index
+	int missingIndex;
+	for (int i =0;i<(m_parallel-1);i++) {
+		if (!m_served_raid_requests[requestIndex][i]) {
+			missingIndex=i;
+			break;
+		}
+	}
+	//use the parity index to determine length because we know we have it
+	int raidPacketSize = m_served_raid_packets[requestIndex][m_parallel-1]->GetSize();
+	//Alloc buffers to hold packet data for the raid correction computation
+	uint8_t *repairsbuf = new uint8_t[raidPacketSize];
+	uint8_t **receivedpackets = new uint8_t*[m_parallel-1];
+	for (int i=0;i<m_parallel-1;i++) {
+		receivedpackets[i] = new uint8_t[raidPacketSize];
+	}
+	//working index indexes into the array of received packets, not m_served_raid_packets
+	int workingIndex = 0;
+	for (int i=0;i<m_parallel;i++) {
+		if (i == missingIndex) {
+			continue;
+		}
+		m_served_raid_packets[requestIndex][i]->CopyData(receivedpackets[workingIndex],raidPacketSize);
+		workingIndex++;
+	}
+	  //Calculate the raide byte
+	  for (int i=0;i<raidPacketSize;i++) {
+		  uint8_t rchunk = receivedpackets[0][i];
+		  for (int j=1;j<(m_parallel-1);j++) {
+			  rchunk = rchunk ^ receivedpackets[j][i];
+		  }
+		  repairsbuf[i] = rchunk;
+	  }
+	  m_served_raid_packets[requestIndex][missingIndex] = new Packet(repairsbuf,raidPacketSize);
+	  return MergePacket(requestIndex);
 }
 
 Ptr<Packet>
 RaidServer::MergePacket(int requestIndex) {
-	Ptr<Packet> p;
+	//Merge the data from the first m_parallel - 1 packets into a single one.
+	int raidPacketSize = m_served_raid_packets[requestIndex][0]->GetSize();
+	uint8_t *buf = new uint8_t[(m_parallel-1) * raidPacketSize];
+	for (int i = 0; i < (m_parallel-1); i++) {
+		int n = m_served_raid_packets[requestIndex][i]->CopyData(&buf[i*raidPacketSize],raidPacketSize);
+		if ( n != raidPacketSize ) {
+			//this is panic mode because there is some data missing somewhere
+			NS_LOG_INFO("Data Missing from raided packet "<< i << "continuing");
+		}
+	}
+	printf("%s\n",buf);
+	Ptr<Packet> p =  new Packet(buf,raidPacketSize*m_parallel);
 	return p;
 
 }
@@ -260,7 +306,10 @@ RaidServer::HandleRead (Ptr<Socket> socket)
 	        BroadcastWrite(p,socket,from);
 	        VerboseServerSendPrint(from,packet);
 	case RAID_COMPLETE:
+		continue;
+		NS_LOG_INFO("RAID_COMPLETE returned preparing to merge packet");
 		p = MergePacket(requestIndex);
+		NS_LOG_INFO("Server Reconstructed Raid Packet " << requestIndex << " Data:" << p->ToString());
 	        BroadcastWrite(p,socket,from);
 	      	VerboseServerSendPrint(from,packet);
       }
