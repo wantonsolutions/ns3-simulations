@@ -1,0 +1,107 @@
+/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
+/*
+ * Copyright 2007 University of Washington
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
+#ifndef RAID_SERVER_H
+#define RAID_SERVER_H
+
+#define SERVICE_BUFFER_SIZE 4096
+#define RAID_COMPLETE 1
+#define RAID_FIXABLE 2
+#define RAID_INCOMPLETE 3
+
+#include "ns3/application.h"
+#include "ns3/event-id.h"
+#include "ns3/ptr.h"
+#include "ns3/address.h"
+
+namespace ns3 {
+
+class Socket;
+class Packet;
+
+/**
+ * \ingroup applications 
+ * \defgroup raid Raid
+ */
+
+/**
+ * \ingroup raid
+ * \brief A Raid server
+ *
+ * Every packet received is sent back.
+ */
+class RaidServer : public Application 
+{
+public:
+  /**
+   * \brief Get the type ID.
+   * \return the object TypeId
+   */
+  static TypeId GetTypeId (void);
+  RaidServer ();
+  virtual ~RaidServer ();
+
+protected:
+  virtual void DoDispose (void);
+
+private:
+
+  virtual void StartApplication (void);
+  virtual void StopApplication (void);
+
+  /**
+   * \brief Handle a packet reception.
+   *
+   * This function is called by lower layers.
+   *
+   * \param socket the socket the packet was received to.
+   */
+  void HandleRead (Ptr<Socket> socket);
+  void VerboseServerSendPrint(Address from, Ptr<Packet> packet);
+  void VerboseServerReceivePrint(Address from, Ptr<Packet> packet);
+
+  void BroadcastWrite(Ptr<Packet> packet, Ptr<Socket> socket, Address from);
+  void PrintSocketIP( Ptr<Socket> socket);
+	int GetHitIndex(Address from, int requestIndex);
+	int GetRaidFlowState(int requestIndex);
+	Ptr<Packet> FixPacket(int requestIndex);
+	Ptr<Packet> MergePacket(int requestIndex);
+
+  /*
+   * connect to a socket and return it
+   */
+  Ptr<Socket> ConnectSocket(uint16_t port, Ptr<NetDevice> dev);
+
+  uint16_t m_port; //!< Port on which we listen for incoming packets.
+  Ptr<Socket> m_socket; //!< IPv4 Socket
+  Ptr<Socket> m_socket6; //!< IPv6 Socket
+
+  Ptr<Socket>* m_sockets;
+  Address m_local; //!< local multicast address //Todo get multiple addresses
+
+  uint8_t m_parallel;
+  bool **m_served_raid_requests;
+  Ptr<Packet> **m_served_raid_packets;
+
+
+};
+
+} // namespace ns3
+
+#endif /* RAID_SERVER_H */
+

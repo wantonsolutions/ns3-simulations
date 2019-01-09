@@ -26,7 +26,7 @@ NS_LOG_COMPONENT_DEFINE ("VarClients");
 
 
 const int K = 4;
-const int PARALLEL = 2;
+const int PARALLEL = 3;
 
 const int PODS = K;
 const int PERPOD = (K/2);
@@ -47,8 +47,8 @@ main (int argc, char *argv[])
   cmd.Parse (argc, argv);
   
   Time::SetResolution (Time::NS);
-  LogComponentEnable ("DRedundancyClientApplication", LOG_LEVEL_INFO);
-  LogComponentEnable ("DRedundancyServerApplication", LOG_LEVEL_INFO);
+  LogComponentEnable ("RaidClientApplication", LOG_LEVEL_INFO);
+  LogComponentEnable ("RaidServerApplication", LOG_LEVEL_INFO);
 
   NodeContainer nodes;
   nodes.Create (NODES);
@@ -159,21 +159,24 @@ main (int argc, char *argv[])
   for (int i=0;i<PARALLEL;i++) {
 	  serverIPS[i] = node2pods[i][serverIndex].GetAddress(1);
   }
-  DRedundancyServerHelper dServer (serverport, serverIPS,PARALLEL);
+  //DRedundancyServerHelper dServer (serverport, serverIPS,PARALLEL);
+  RaidServerHelper dServer (serverport, serverIPS,PARALLEL);
 
   ApplicationContainer serverApps = dServer.Install (nodes.Get (serverIndex));
   serverApps.Start (Seconds (1.0));
   serverApps.Stop (Seconds (10.0));
   
   //map clients to servers 
-  DRedundancyClientHelper dClient (serverport, serverIPS, PARALLEL);
+  //DRedundancyClientHelper dClient (serverport, serverIPS, PARALLEL);
+  RaidClientHelper dClient (serverport, serverIPS, PARALLEL);
   dClient.SetAttribute ("MaxPackets", UintegerValue (5000));
   dClient.SetAttribute ("Interval", TimeValue (Seconds (2)));
   dClient.SetAttribute ("PacketSize", UintegerValue (1024));
   //dClient.SetAddresses(serverIPS, PARALLEL);
 
   ApplicationContainer clientApps = dClient.Install (nodes.Get (clientIndex));
-  Ptr<DRedundancyClient> drc = DynamicCast<DRedundancyClient>(clientApps.Get(0));
+  Ptr<RaidClient> drc = DynamicCast<RaidClient>(clientApps.Get(0));
+  drc->SetFill("In the days of my youth I was told what it means to be a man-");
   drc->SetAddresses(serverIPS,PARALLEL);
   clientApps.Start (Seconds (2.0));
   clientApps.Stop (Seconds (10.0));
