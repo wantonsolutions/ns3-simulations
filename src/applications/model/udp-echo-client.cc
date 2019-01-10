@@ -419,9 +419,10 @@ UdpEchoClient::HandleRead (Ptr<Socket> socket)
 	      int requestIndex = 5;
 	      //printf("index %d\n",requestIndex);
               Time difference = Simulator::Now() - requests[requestIndex];
+	      /* Uncomment for measurements
 	      if (m_peerPort == 11) {
 	      	NS_LOG_INFO(difference.GetNanoSeconds());
-	      }
+	      }*/
       }
       if (debugging) {
 	      if (InetSocketAddress::IsMatchingType (from))

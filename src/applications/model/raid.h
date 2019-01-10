@@ -20,7 +20,7 @@
 #ifndef RAID_H
 #define RAID_H
 
-#define RAID_REQUEST_SIZE 4096
+#define RAID_REQUEST_SIZE 16384
 #define RAID_COMPLETE 1
 #define RAID_FIXABLE 2
 #define RAID_INCOMPLETE 3

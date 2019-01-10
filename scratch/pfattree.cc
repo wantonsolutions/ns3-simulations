@@ -37,6 +37,102 @@ const int NODE = K/2 ;
 const int NODES = PODS * PERPOD * NODE;
 
 
+void InstallRandomClientTransmissions(float start, float stop, int clientIndex, UdpEchoClientHelper echoClient, NodeContainer nodes) {
+  for (float base = start;base < stop; base += 1.0) {
+	ApplicationContainer clientApps = echoClient.Install (nodes.Get (clientIndex));
+	clientApps.Start( Seconds (base));
+	base += (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 5;
+	clientApps.Stop( Seconds (base));
+	base += (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 5;
+  }
+}
+
+void InstallUniformClientTransmissions(float start, float stop, float gap, int clientIndex, UdpEchoClientHelper echoClient, NodeContainer nodes) {
+  for (float base = start;base < stop; base += gap) {
+  	ApplicationContainer clientApps = echoClient.Install (nodes.Get (clientIndex));
+	clientApps.Start( Seconds (base));
+	base += gap;
+	clientApps.Stop( Seconds (base));
+  }
+}
+
+void InstallClientAttributes(UdpEchoClientHelper echoClient, int maxpackets, double interval, int packetsize) {
+  echoClient.SetAttribute ("MaxPackets", UintegerValue (maxpackets));
+  echoClient.SetAttribute ("Interval", TimeValue (Seconds (interval)));
+  echoClient.SetAttribute ("PacketSize", UintegerValue (packetsize));
+}
+
+//Start with a test
+void SetupRandomMeasureClient(float start, float stop, int serverPort, Address serverAddress, NodeContainer nodes, int clientIndex) {
+  //map clients to servers 
+  UdpEchoClientHelper echoClient (serverAddress, serverPort);
+  InstallClientAttributes(echoClient,50000,0.1,20480);
+  InstallRandomClientTransmissions(start,stop,clientIndex,echoClient,nodes);
+}
+
+void SetupModularClient(float start, float stop, float gap, int serverPort, Address serverAddress, NodeContainer nodes, int clientIndex, double interval, int packetsize) {
+  //map clients to servers 
+  UdpEchoClientHelper echoClient (serverAddress, serverPort);
+  InstallClientAttributes(echoClient, 50000,interval,packetsize);
+  InstallUniformClientTransmissions(start,stop,gap,clientIndex, echoClient, nodes);
+}
+
+void SetupModularRandomClient(float start, float stop, int serverPort, Address serverAddress, NodeContainer nodes, int clientIndex, double interval, int packetsize, int maxpackets) {
+  //map clients to servers 
+  UdpEchoClientHelper echoClient (serverAddress, serverPort);
+  InstallClientAttributes(echoClient, maxpackets,interval,packetsize);
+  InstallRandomClientTransmissions(start,stop,clientIndex,echoClient,nodes);
+}
+
+//Start with a test
+void SetupUniformMeasureClient(float start, float stop, float gap, int serverPort, Address serverAddress, NodeContainer nodes, int clientIndex) {
+  //map clients to servers 
+  UdpEchoClientHelper echoClient (serverAddress, serverPort);
+  InstallClientAttributes(echoClient,50000,0.001,1024);
+  
+  for (float base = start;base < stop; base += gap) {
+  	ApplicationContainer clientApps = echoClient.Install (nodes.Get (clientIndex));
+	clientApps.Start( Seconds (base));
+	base += gap;
+	clientApps.Stop( Seconds (base));
+  }
+}
+
+void SetupRandomCoverTraffic(float clientStart,float clientStop, int NPackets, float interval, int packetsize, int serverport ,NodeContainer nodes, int numNodes, int distance, Ipv4InterfaceContainer addresses[]) {
+  for (int i = 0; i < numNodes; i++) {
+	  if ( ! bool(i % 2) ) {
+		  UdpEchoServerHelper echoServer (serverport);
+		  ApplicationContainer serverApps = echoServer.Install (nodes.Get (i));
+		  serverApps.Start (Seconds (1.0));
+		  serverApps.Stop (Seconds (clientStop));
+	  } else {
+		  //Pick the server in the nearist pod
+                  int serverindex = ((i-1) + (distance)) % numNodes;
+  	          Address serverAddress = addresses[serverindex].GetAddress(1);
+		  //float interval =  static_cast <float> (rand()) / static_cast <float> (RAND_MAX) ;
+		  //int packetsize = 1024 * (rand() % 32);
+		  //printf("Starting Client %d with packetsize %d, rate %f\n",i/2,packetsize,interval); 
+		  SetupModularRandomClient(clientStart,clientStop,serverport,serverAddress,nodes,i,interval,packetsize,NPackets);
+	  }
+  }
+}
+
+void SetupUniformCoverTraffic(float clientStart,float clientStop, float gap, float offset, int serverport ,NodeContainer nodes, int numNodes, int distance, Ipv4InterfaceContainer addresses[]) {
+
+  for (int i = 0; i < numNodes; i++) {
+	  if ( ! bool(i % 2) ) {
+		  UdpEchoServerHelper echoServer (serverport);
+		  ApplicationContainer serverApps = echoServer.Install (nodes.Get (i));
+		  serverApps.Start (Seconds (1.0));
+		  serverApps.Stop (Seconds (clientStop));
+	  } else {
+		  //Pick the server in the adjacent
+          int serverindex = ((i-1) + (distance)) % numNodes;
+  	      Address serverAddress = addresses[serverindex].GetAddress(1);
+		  SetupUniformMeasureClient(clientStart,clientStop,gap,serverport,serverAddress,nodes,i);
+	  }
+  }
+}
 
 
 
@@ -44,7 +140,28 @@ int
 main (int argc, char *argv[])
 {
   CommandLine cmd;
+
+  uint32_t CoverNPackets;
+  float CoverInterval;
+  uint32_t CoverPacketSize;
+
+  uint32_t ClientProtocolNPackets;
+  float ClientProtocolInterval;
+  uint32_t ClientProtocolPacketSize;
+
+
+  cmd.AddValue("CoverNPackets", "Number of packets for the cover to echo", CoverNPackets);
+  cmd.AddValue("CoverInterval", "Interval at which cover traffic broadcasts", CoverInterval);
+  cmd.AddValue("CoverPacketSize", "The Size of the packet used by the cover traffic", CoverPacketSize);
+
+  cmd.AddValue("ClientProtocolNPackets", "Number of packets to echo", ClientProtocolNPackets);
+  cmd.AddValue("ClientProtocolInterval", "Interval at which a protocol client makes requests", ClientProtocolInterval);
+  cmd.AddValue("ClientProtocolPacketSize", "Interval at which a protocol client makes requests", ClientProtocolPacketSize);
+
   cmd.Parse (argc, argv);
+
+  printf("Client - NPackets %d, baseInterval %f packetSize %d \n",ClientProtocolNPackets,ClientProtocolInterval,ClientProtocolPacketSize);
+  printf("Cover - NPackets %d, baseInterval %f packetSize %d \n",CoverNPackets,CoverInterval,CoverPacketSize);
   
   Time::SetResolution (Time::NS);
   LogComponentEnable ("RaidClientApplication", LOG_LEVEL_WARN);
@@ -170,9 +287,9 @@ main (int argc, char *argv[])
   //map clients to servers 
   //DRedundancyClientHelper dClient (serverport, serverIPS, PARALLEL);
   RaidClientHelper dClient (serverport, serverIPS, PARALLEL);
-  dClient.SetAttribute ("MaxPackets", UintegerValue (5000));
-  dClient.SetAttribute ("Interval", TimeValue (Seconds (2)));
-  dClient.SetAttribute ("PacketSize", UintegerValue (1024));
+  dClient.SetAttribute ("MaxPackets", UintegerValue (ClientProtocolNPackets));
+  dClient.SetAttribute ("Interval", TimeValue (Seconds (ClientProtocolInterval)));
+  dClient.SetAttribute ("PacketSize", UintegerValue (ClientProtocolPacketSize));
   //dClient.SetAddresses(serverIPS, PARALLEL);
 
   ApplicationContainer clientApps = dClient.Install (nodes.Get (clientIndex));
@@ -187,6 +304,41 @@ main (int argc, char *argv[])
   //pointToPoint.EnablePcapAll("pods");
   //AsciiTraceHelper ascii;
   //pointToPoint.EnableAsciiAll(ascii.CreateFileStream("pods.tr"));
+  
+
+  //Starting Here The question is how do I assign specific IP addresses rather than using the address.Assign counter which automatically assings addresses.
+  //
+  
+  //int measureserverport = 11;
+  //int measureClientIndex = 0;
+  //int measureServerIndex = 5;
+  int coverserverport = 10;
+  float clientStart = 2.0;
+  float clientStop = 2000.0;
+
+  //SetupRandomMeasureClient(clientStart,clientStop,measureserverport,serverAddress, nodes, measureClientIndex);
+  
+   //Uniform cover to nearist neighbour
+  //SetupUniformCoverTraffic(clientStart, stop, gap, offset, coverserverport, nodes, NODES, 0, node2edge);
+  //Uniform cover over edge + agg
+  //SetupUniformCoverTraffic(clientStart, stop, gap, offset, coverserverport, nodes, NODES, (K/2), node2edge);
+  //Uniform cover over TOR
+  //SetupUniformCoverTraffic(clientStart, stop, gap, offset, coverserverport, nodes, NODES, K, node2edge);
+  //SetupRandomCoverTraffic(clientStart, stop, gap, offset, coverserverport, nodes, NODES, (K/2) node2edge);
+  for (int i=0 ; i < PARALLEL; i++ ){
+  	SetupRandomCoverTraffic(
+			clientStart, 
+			clientStop, 
+			CoverNPackets,
+			CoverInterval,
+		        CoverPacketSize,
+			coverserverport + i, 
+			nodes, 
+			NODES, 
+			K, 
+			node2pods[i]);
+  }
+  
 
   Simulator::Run ();
   Simulator::Destroy ();
