@@ -273,6 +273,7 @@ main (int argc, char *argv[])
   int serverport = 9;
   int clientIndex = 0;
   int serverIndex = 11;
+  float duration = 10.0;
   Address serverIPS[PARALLEL];
   for (int i=0;i<PARALLEL;i++) {
 	  serverIPS[i] = node2pods[i][serverIndex].GetAddress(1);
@@ -282,7 +283,7 @@ main (int argc, char *argv[])
 
   ApplicationContainer serverApps = dServer.Install (nodes.Get (serverIndex));
   serverApps.Start (Seconds (1.0));
-  serverApps.Stop (Seconds (10.0));
+  serverApps.Stop (Seconds (duration));
   
   //map clients to servers 
   //DRedundancyClientHelper dClient (serverport, serverIPS, PARALLEL);
@@ -297,7 +298,7 @@ main (int argc, char *argv[])
   drc->SetFill("In the days of my youth I was told what it means to be a man-");
   drc->SetAddresses(serverIPS,PARALLEL);
   clientApps.Start (Seconds (2.0));
-  clientApps.Stop (Seconds (10.0));
+  clientApps.Stop (Seconds (duration));
 
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
