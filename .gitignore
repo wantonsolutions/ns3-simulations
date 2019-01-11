@@ -27,4 +27,11 @@ wscript
 wutils.py
 wutils.pyc
 
+plot/randomCoverIncremental/dred
+plot/randomCoverIncremental/raid
+plot/randomCoverIncremental/dred
+plot/randomCoverIncremental/linearPtreeExp
+plot/randomCoverIncremental/*.png
+plot/randomCoverIncremental/randomcover
+
 

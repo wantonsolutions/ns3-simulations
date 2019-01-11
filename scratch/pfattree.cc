@@ -79,9 +79,27 @@ void SetupModularClient(float start, float stop, float gap, int serverPort, Addr
 
 void SetupModularRandomClient(float start, float stop, int serverPort, Address serverAddress, NodeContainer nodes, int clientIndex, double interval, int packetsize, int maxpackets) {
   //map clients to servers 
+  NS_LOG_INFO("Starting Client Packet Size " << packetsize << " interval " << interval << " nPackets " << maxpackets );
   UdpEchoClientHelper echoClient (serverAddress, serverPort);
-  InstallClientAttributes(echoClient, maxpackets,interval,packetsize);
-  InstallRandomClientTransmissions(start,stop,clientIndex,echoClient,nodes);
+
+
+  //Install Client Attributes
+  echoClient.SetAttribute ("MaxPackets", UintegerValue (maxpackets));
+  echoClient.SetAttribute ("Interval", TimeValue (Seconds (interval)));
+  echoClient.SetAttribute ("PacketSize", UintegerValue (packetsize));
+
+  //Install client Transmission
+  for (float base = start;base < stop; base += 1.0) {
+	ApplicationContainer clientApps = echoClient.Install (nodes.Get (clientIndex));
+	clientApps.Start( Seconds (base));
+	base += (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 5;
+	clientApps.Stop( Seconds (base));
+	base += (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 5;
+  }
+
+
+  //InstallClientAttributes(echoClient, maxpackets,interval,packetsize);
+  //InstallRandomClientTransmissions(start,stop,clientIndex,echoClient,nodes);
 }
 
 //Start with a test
@@ -98,12 +116,12 @@ void SetupUniformMeasureClient(float start, float stop, float gap, int serverPor
   }
 }
 
-void SetupRandomCoverTraffic(float clientStart,float clientStop, int NPackets, float interval, int packetsize, int serverport ,NodeContainer nodes, int numNodes, int distance, Ipv4InterfaceContainer addresses[]) {
+void SetupRandomCoverTraffic(float clientStart,float clientStop,float serverStart, float serverStop, int NPackets, float interval, int packetsize, int serverport ,NodeContainer nodes, int numNodes, int distance, Ipv4InterfaceContainer addresses[]) {
   for (int i = 0; i < numNodes; i++) {
 	  if ( ! bool(i % 2) ) {
 		  UdpEchoServerHelper echoServer (serverport);
 		  ApplicationContainer serverApps = echoServer.Install (nodes.Get (i));
-		  serverApps.Start (Seconds (1.0));
+		  serverApps.Start (Seconds (serverStart));
 		  serverApps.Stop (Seconds (clientStop));
 	  } else {
 		  //Pick the server in the nearist pod
@@ -164,10 +182,15 @@ main (int argc, char *argv[])
   printf("Cover - NPackets %d, baseInterval %f packetSize %d \n",CoverNPackets,CoverInterval,CoverPacketSize);
   
   Time::SetResolution (Time::NS);
+  LogComponentEnable ("UdpEchoClientApplication", LOG_LEVEL_WARN);
   LogComponentEnable ("RaidClientApplication", LOG_LEVEL_WARN);
-  //LogComponentEnable ("RaidClientApplication", LOG_LEVEL_INFO);
-  //LogComponentEnable ("RaidServerApplication", LOG_LEVEL_INFO);
-
+  LogComponentEnable ("DRedundancyClientApplication", LOG_LEVEL_WARN);
+  /*
+  LogComponentEnable ("RaidClientApplication", LOG_LEVEL_INFO);
+  LogComponentEnable ("RaidServerApplication", LOG_LEVEL_INFO);
+      LogComponentEnable ("UdpEchoClientApplication", LOG_LEVEL_INFO);
+      LogComponentEnable ("UdpEchoServerApplication", LOG_LEVEL_INFO);
+*/
   NodeContainer nodes;
   nodes.Create (NODES);
 
@@ -273,31 +296,52 @@ main (int argc, char *argv[])
   int serverport = 9;
   int clientIndex = 0;
   int serverIndex = 11;
-  float duration = 10.0;
+
+
+  int coverserverport = 10;
+  float serverStart = 1.0;
+  float clientStart = 2.0;
+  float clientStop = 100.0;
+
+  float duration = clientStop;
+  float serverStop = duration;
+
+  
+
   Address serverIPS[PARALLEL];
   for (int i=0;i<PARALLEL;i++) {
 	  serverIPS[i] = node2pods[i][serverIndex].GetAddress(1);
   }
+
+  UdpEchoServerHelper dServer (serverport);
   //DRedundancyServerHelper dServer (serverport, serverIPS,PARALLEL);
-  RaidServerHelper dServer (serverport, serverIPS,PARALLEL);
+  //RaidServerHelper dServer (serverport, serverIPS,PARALLEL);
 
   ApplicationContainer serverApps = dServer.Install (nodes.Get (serverIndex));
-  serverApps.Start (Seconds (1.0));
+  serverApps.Start (Seconds (serverStart));
   serverApps.Stop (Seconds (duration));
   
   //map clients to servers 
+  UdpEchoClientHelper dClient (serverIPS[0], serverport);
   //DRedundancyClientHelper dClient (serverport, serverIPS, PARALLEL);
-  RaidClientHelper dClient (serverport, serverIPS, PARALLEL);
+  //RaidClientHelper dClient (serverport, serverIPS, PARALLEL);
+  
+
   dClient.SetAttribute ("MaxPackets", UintegerValue (ClientProtocolNPackets));
   dClient.SetAttribute ("Interval", TimeValue (Seconds (ClientProtocolInterval)));
   dClient.SetAttribute ("PacketSize", UintegerValue (ClientProtocolPacketSize));
   //dClient.SetAddresses(serverIPS, PARALLEL);
 
   ApplicationContainer clientApps = dClient.Install (nodes.Get (clientIndex));
-  Ptr<RaidClient> drc = DynamicCast<RaidClient>(clientApps.Get(0));
+
+  Ptr<UdpEchoClient> drc = DynamicCast<UdpEchoClient>(clientApps.Get(0));
+  //Ptr<DRedundancyClient> drc = DynamicCast<DRedundancyClient>(clientApps.Get(0));
+  //Ptr<RaidClient> drc = DynamicCast<RaidClient>(clientApps.Get(0));
+
+
   drc->SetFill("In the days of my youth I was told what it means to be a man-");
-  drc->SetAddresses(serverIPS,PARALLEL);
-  clientApps.Start (Seconds (2.0));
+  //drc->SetAddresses(serverIPS,PARALLEL);
+  clientApps.Start (Seconds (clientStart));
   clientApps.Stop (Seconds (duration));
 
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
@@ -313,9 +357,6 @@ main (int argc, char *argv[])
   //int measureserverport = 11;
   //int measureClientIndex = 0;
   //int measureServerIndex = 5;
-  int coverserverport = 10;
-  float clientStart = 2.0;
-  float clientStop = 2000.0;
 
   //SetupRandomMeasureClient(clientStart,clientStop,measureserverport,serverAddress, nodes, measureClientIndex);
   
@@ -326,10 +367,13 @@ main (int argc, char *argv[])
   //Uniform cover over TOR
   //SetupUniformCoverTraffic(clientStart, stop, gap, offset, coverserverport, nodes, NODES, K, node2edge);
   //SetupRandomCoverTraffic(clientStart, stop, gap, offset, coverserverport, nodes, NODES, (K/2) node2edge);
+  
   for (int i=0 ; i < PARALLEL; i++ ){
   	SetupRandomCoverTraffic(
 			clientStart, 
 			clientStop, 
+			serverStart,
+			serverStop,
 			CoverNPackets,
 			CoverInterval,
 		        CoverPacketSize,

@@ -19,41 +19,38 @@ n_bins = 50
 from matplotlib.pyplot import figure
 figure(num=None, figsize=(30, 10), dpi=80, facecolor='w', edgecolor='k')
 
-font = {'family' : 'normal',
-        'weight' : 'bold',
-        'size'   : 25}
+sys.argv.pop(0)
+print str(sys.argv)
 
-matplotlib.rc('font', **font)
+#font = {'family' : 'normal',
+#        'weight' : 'bold',
+#        'size'   : 25}
 
-with open('random.dat','r') as csvfile:
-    plots = csv.reader(csvfile, delimiter=',')
-    for row in plots:
-        time.append(int(row[0])/microsecond/milisecond)
+#matplotlib.rc('font', **font)
 
-with open('d.dat','r') as csvfile:
-    plots = csv.reader(csvfile, delimiter=',')
-    for row in plots:
-        dtime.append(int(row[0])/microsecond/milisecond)
-
-with open('raid.dat','r') as csvfile:
-    plots = csv.reader(csvfile, delimiter=',')
-    for row in plots:
-        rtime.append(int(row[0])/microsecond/milisecond)
-
+#plot the latencies of each individual measure
+for filename in sys.argv:
+    with open(filename,'r') as csvfile:
+        plots = csv.reader(csvfile, delimiter=',')
+        for row in plots:
+            time.append(int(row[0])/microsecond/milisecond)
+        num_bins = 20
+        counts, bin_edges = np.histogram(time, bins=num_bins)
+        cdf = np.cumsum(counts)
+        plt.plot(bin_edges[1:], cdf, label=filename,color='g')
+        time = []
 
 
-num_bins = 20
-counts, bin_edges = np.histogram(time, bins=num_bins)
-cdf = np.cumsum(counts)
-plt.plot(bin_edges[1:], cdf, label="Echo Protocol Fat-Tree K=2",color='g')
 
-counts, bin_edges = np.histogram(dtime, bins=num_bins)
-cdf = np.cumsum(counts)
-plt.plot(bin_edges[1:], cdf,label="D-Redundancy 2 PFat-Tree K=4 P=2", color='b')
+plt.legend()
 
-counts, bin_edges = np.histogram(rtime, bins=num_bins)
-cdf = np.cumsum(counts)
-plt.plot(bin_edges[1:], cdf, label="Raid 4 PFat-Tree K=4 P=4", color='r')
+#counts, bin_edges = np.histogram(dtime, bins=num_bins)
+#cdf = np.cumsum(counts)
+#plt.plot(bin_edges[1:], cdf,label="D-Redundancy 2 PFat-Tree K=4 P=2", color='b')
+
+#counts, bin_edges = np.histogram(rtime, bins=num_bins)
+#cdf = np.cumsum(counts)
+#plt.plot(bin_edges[1:], cdf, label="Raid 4 PFat-Tree K=4 P=4", color='r')
 
 ax = plt.gca()
 ax.get_xaxis().get_major_formatter().set_scientific(False)
@@ -70,7 +67,6 @@ plt.title("CDF of round trip latencies")
 #plt.plot((len(cdf)-1) * p/100., perc, 'ro')
 
 
-plt.legend()
 plt.savefig("cdfs.png")
 
 

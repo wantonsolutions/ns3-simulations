@@ -401,7 +401,7 @@ DRedundancyClient::Send (void)
   }
   if (m_sent < m_count) 
     {
-      printf("Scheduling next Transmission for %d in the future\n",int(m_interval.GetNanoSeconds()));
+      //printf("Scheduling next Transmission for %d in the future\n",int(m_interval.GetNanoSeconds()));
       ScheduleTransmit (m_interval);
     }
 	
@@ -435,10 +435,11 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 		      //differnece time being logged is the end to end latency of a
 		      //request.
 		      //TODO Add bandwidth to the measure of each request.
-		      
+		       NS_LOG_WARN(difference.GetNanoSeconds()); 
+		       /*
 		      if (m_peerPort == 11) {
 			NS_LOG_INFO(difference.GetNanoSeconds());
-		      }
+		      }*/
 	      } else {
 		      NS_LOG_INFO("Old Client Response " << requestIndex << " Received");
 	      }

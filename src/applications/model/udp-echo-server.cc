@@ -32,7 +32,6 @@
 
 #include "udp-echo-server.h"
 
-bool debuggingC = false;
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("UdpEchoServerApplication");
@@ -156,7 +155,6 @@ UdpEchoServer::HandleRead (Ptr<Socket> socket)
   Address from;
   while ((packet = socket->RecvFrom (from)))
     {
-      if ( debuggingC ) {
 	      if (InetSocketAddress::IsMatchingType (from))
 		{
 		  NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds () << "s server received " << packet->GetSize () << " bytes from " <<
@@ -169,7 +167,6 @@ UdpEchoServer::HandleRead (Ptr<Socket> socket)
 			       Inet6SocketAddress::ConvertFrom (from).GetIpv6 () << " port " <<
 			       Inet6SocketAddress::ConvertFrom (from).GetPort ());
 		}
-      }
 
       //packet->RemoveAllPacketTags ();
       //packet->RemoveAllByteTags ();
@@ -177,7 +174,6 @@ UdpEchoServer::HandleRead (Ptr<Socket> socket)
       NS_LOG_LOGIC ("Echoing packet");
       socket->SendTo (packet, 0, from);
 
-      if (debuggingC) {
 	      if (InetSocketAddress::IsMatchingType (from))
 		{
 		  NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds () << "s server sent " << packet->GetSize () << " bytes to " <<
@@ -190,7 +186,6 @@ UdpEchoServer::HandleRead (Ptr<Socket> socket)
 			       Inet6SocketAddress::ConvertFrom (from).GetIpv6 () << " port " <<
 			       Inet6SocketAddress::ConvertFrom (from).GetPort ());
 		}
-      	}
     }
 }
 

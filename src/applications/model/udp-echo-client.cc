@@ -36,7 +36,6 @@
 
 #define REQUEST_BUFFER_SIZE 4096
 
-bool debugging = false;
 namespace ns3 {
 	
 	Time requests[REQUEST_BUFFER_SIZE];
@@ -140,7 +139,6 @@ UdpEchoClient::StartApplication (void)
   //Then the tricky part, on the fly design cover traffic patterns to disrupt
   //the current traffic. The most basic would be uniform traffic, Then Zipf,
   //finally bursty. There is no way you make all of that and take measurements to prepare for failure.
-  
   
   if (m_socket == 0)
     {
@@ -373,7 +371,6 @@ UdpEchoClient::Send (void)
   m_socket->Send (p);
 
   ++m_sent;
-  if (debugging) {
 	  if (Ipv4Address::IsMatchingType (m_peerAddress))
 	    {
 	      NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds () << "s client sent " << m_size << " bytes to " <<
@@ -394,7 +391,6 @@ UdpEchoClient::Send (void)
 	      NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds () << "s client sent " << m_size << " bytes to " <<
 			   Inet6SocketAddress::ConvertFrom (m_peerAddress).GetIpv6 () << " port " << Inet6SocketAddress::ConvertFrom (m_peerAddress).GetPort ());
 	    }
-  }
   if (m_sent < m_count) 
     {
       ScheduleTransmit (m_interval);
@@ -419,12 +415,11 @@ UdpEchoClient::HandleRead (Ptr<Socket> socket)
 	      int requestIndex = 5;
 	      //printf("index %d\n",requestIndex);
               Time difference = Simulator::Now() - requests[requestIndex];
-	      /* Uncomment for measurements
 	      if (m_peerPort == 11) {
-	      	NS_LOG_INFO(difference.GetNanoSeconds());
-	      }*/
+	      	NS_LOG_WARN(difference.GetNanoSeconds());
+	      }
+	      
       }
-      if (debugging) {
 	      if (InetSocketAddress::IsMatchingType (from))
 		{
 		  NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds () << "s client received " << packet->GetSize () << " bytes from " <<
@@ -437,7 +432,6 @@ UdpEchoClient::HandleRead (Ptr<Socket> socket)
 			       Inet6SocketAddress::ConvertFrom (from).GetIpv6 () << " port " <<
 			       Inet6SocketAddress::ConvertFrom (from).GetPort ());
 		}
-      }
     }
 }
 
