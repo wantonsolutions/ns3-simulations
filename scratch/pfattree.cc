@@ -29,7 +29,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("VarClients");
 
 
-const int K = 4;
+const int K = 8;
 const int PARALLEL = 3;
 
 const int PODS = K;
@@ -238,9 +238,10 @@ main (int argc, char *argv[])
   for (int i = 0; i < PARALLEL;i++) {
       for (int coreS = 0; coreS < CORE;coreS++) {
           for (int pod = 0; pod < PODS; pod++) {
-              nc_pod2core[i][(coreS * CORE) + pod] = NodeContainer(core[i].Get(coreS), pods[i].Get(pod));
+              nc_pod2core[i][(coreS*PODS) + pod] = NodeContainer(core[i].Get(coreS), pods[i].Get(pod));
+	      printf("(%d,%d,%d) fin(%d) get N %d\n",i,coreS,pod,((coreS * PODS) + pod ),nc_pod2core[i][(coreS * PODS) + pod].GetN());
           }
-      }
+ 	}
   }
 
 
@@ -253,6 +254,7 @@ main (int argc, char *argv[])
   //connect nodes to edges
   for (int i=0; i < PARALLEL; i++) {
       for (int n = 0; n < NODES; n++) {
+	  printf("Installing Node %d on Parallel %d\n",n,i);
           ndc_node2pod[i][n] = pointToPoint.Install(nc_node2pod[i][n]);
       }
   }
@@ -260,6 +262,7 @@ main (int argc, char *argv[])
   //connect pods to core
   for (int i=0; i < PARALLEL; i++) {
     for (int s=0; s < CORE * PODS; s++) {
+	printf("Installing Core %d on Parallel %d\n",s,i);
         ndc_pod2core[i][s] = pointToPoint.Install(nc_pod2core[i][s]);
     }
   }
@@ -277,15 +280,20 @@ main (int argc, char *argv[])
   Ipv4InterfaceContainer pods2core[PARALLEL][CORE*PODS];
 
   for (int i=0;i<PARALLEL;i++) {
-          std::stringstream addr;
+        std::stringstream addr;
         addr << "10." << 1 + i << ".1.0";
   	address.SetBase(addr.str().c_str(), "255.255.255.255");
-      for (int n=0;n<NODES;n++) {
-        node2pods[i][n] = address.Assign(ndc_node2pod[i][n]);
-      }
-      for (int c=0;c<CORE*PODS;c++) {
-        pods2core[i][c] = address.Assign(ndc_pod2core[i][c]);
-      }
+	      for (int n=0;n<NODES;n++) {
+	        printf("%d-%d\n",i,n);
+	      	node2pods[i][n] = address.Assign(ndc_node2pod[i][n]);
+	      }
+        std::stringstream addr2;
+        addr2 << "10." << 1 + i << ".2.0";
+  	address.SetBase(addr2.str().c_str(), "255.255.255.255");
+	      for (int c=0;c<CORE*PODS;c++) {
+	        printf("%d-%d\n",i,c);
+		pods2core[i][c] = address.Assign(ndc_pod2core[i][c]);
+	      }
   }
 
 
