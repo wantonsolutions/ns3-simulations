@@ -184,6 +184,7 @@ DRedundancyClient::SetAddresses(Address* addresses, uint8_t len)
 		NS_LOG_FUNCTION(this << addresses[i]);
 	}
 	m_peerAddresses = addresses;
+	m_parallel = len;
 	//This is a bit hacky, but I need to have an event for each addresss
 }
 
@@ -201,6 +202,8 @@ DRedundancyClient::StartApplication (void)
 
   m_sockets = new Ptr<Socket>[m_parallel];
   ScheduleTransmit (Seconds (0.));
+  m_parallel = 3;
+  NS_LOG_INFO("D-Red client PARALLEL = " << m_parallel);
   for (int i=0;i<m_parallel;i++) {
 	NS_LOG_INFO("Starting application setting up socket " << i);
 	Ptr<Node> n = GetNode();

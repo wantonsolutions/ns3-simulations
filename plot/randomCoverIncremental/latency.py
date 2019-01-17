@@ -1,5 +1,6 @@
 import numpy as np
 from pylab import *
+from matplotlib.pyplot import figure
 import matplotlib.pyplot as plt
 import csv
 import sys
@@ -11,7 +12,6 @@ milisecond=1000
 time = []
 bandwidth = []
 
-from matplotlib.pyplot import figure
 figure(num=None, figsize=(30, 10), dpi=80, facecolor='w', edgecolor='k')
 
 #ax = plt.gca()

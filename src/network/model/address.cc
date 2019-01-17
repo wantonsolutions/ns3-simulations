@@ -50,6 +50,12 @@ Address::Address (const Address & address)
   : m_type (address.m_type),
     m_len (address.m_len)
 {
+	/*
+	for (int i = 0; i < MAX_SIZE; i++) {
+		printf("-%d-",address.m_data[i]);
+	}
+		printf("\n");
+		*/
   NS_ASSERT (m_len <= MAX_SIZE);
   std::memcpy (m_data, address.m_data, m_len);
 }

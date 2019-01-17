@@ -97,7 +97,7 @@ DRedundancyServer::StartApplication (void)
   //Initalize parallel sockets
   m_sockets = new Ptr<Socket>[m_parallel];
   for (int i=0;i<m_parallel;i++) {
-	printf("Starting application setting up socket %d\n",i);
+	//printf("Starting application D-RED Server setting up socket %d\n",i);
 	//connect a seperate socket to each of the net devices attacehd to the server node
 	Ptr<Node> n = GetNode();
 	Ptr<NetDevice> dev = n->GetDevice(i);

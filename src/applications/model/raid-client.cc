@@ -96,6 +96,7 @@ Ptr<Socket>
 RaidClient::ConnectSocket(Address address, uint16_t port, Ptr<NetDevice> dev) {
   NS_LOG_FUNCTION ("Connecting to a socket");
 
+  NS_LOG_INFO("Address " << address);
   Ptr<Socket> socket;
   if (socket == 0)
     {
@@ -221,7 +222,7 @@ RaidClient::StartApplication (void)
   m_sockets = new Ptr<Socket>[m_parallel];
   ScheduleTransmit (Seconds (0.));
   for (int i=0;i<m_parallel;i++) {
-	NS_LOG_INFO("Starting application setting up socket " << i);
+	NS_LOG_INFO("Starting RAID application setting up socket " << i);
 	Ptr<Node> n = GetNode();
 	Ptr<NetDevice> dev = n->GetDevice(i);
 	m_sockets[i] = ConnectSocket(m_peerAddresses[i],m_peerPort,dev);
