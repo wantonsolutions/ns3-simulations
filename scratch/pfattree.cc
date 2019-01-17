@@ -245,6 +245,7 @@ main (int argc, char *argv[])
 
 
   PointToPointHelper pointToPoint;
+  pointToPoint.SetQueue("ns3::DropTailQueue");
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("5Mbps"));
   pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms"));
 
@@ -380,6 +381,8 @@ main (int argc, char *argv[])
 		  break;
 	  }
   }
+  //Config::SetDefault ("ns3::Ipv4GlobalRouting::EcmpMode", StringValue ("ECMP_RANDOM"));
+  Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting",BooleanValue(true));
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
   clientApps.Start (Seconds (clientStart));
