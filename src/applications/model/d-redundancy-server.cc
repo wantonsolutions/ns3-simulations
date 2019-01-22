@@ -159,10 +159,16 @@ DRedundancyServer::BroadcastWrite(Ptr<Packet> packet, Ptr<Socket> socket, Addres
 	//X.Y.X.X, the Y digit will be used to broadcast in parallel. This
 	//function determines which of the parallel chanels the packet was
 	//received on and then broadcasts across the rest.
-	
+
+	Address addr2;
+	socket->GetSockName (addr2);
+	InetSocketAddress iaddr = InetSocketAddress::ConvertFrom (addr2);
+	NS_LOG_INFO("Writing out on server " << iaddr.GetIpv4() );
+
 	int mask = 0x00FF0000;
 	int invmask = 0xFF00FFFF;
 	int hitIndex = ((addr.GetIpv4().Get() & mask) >> 16);
+	//TODO I need to update this along with any code which modifies how IP addresses are distributed.
 	NS_LOG_INFO( "Addr Key " << hitIndex);
 	//TODO there is probably a cleaner way to do this by just casting the from address rather than re-initalizing
 	for (int i =1; i <= m_parallel; i++) {

@@ -438,7 +438,8 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 		      //differnece time being logged is the end to end latency of a
 		      //request.
 		      //TODO Add bandwidth to the measure of each request.
-		       NS_LOG_WARN(difference.GetNanoSeconds()); 
+		       NS_LOG_WARN(difference.GetNanoSeconds() << "-" << m_sent);
+		       //NS_LOG_WARN(difference.GetNanoSeconds()); 
 		       /*
 		      if (m_peerPort == 11) {
 			NS_LOG_INFO(difference.GetNanoSeconds());

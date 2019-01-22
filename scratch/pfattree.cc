@@ -29,7 +29,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("VarClients");
 
 
-const int K = 8;
+const int K = 4;
 const int PARALLEL = 3;
 
 const int PODS = K;
@@ -55,9 +55,9 @@ void InstallRandomDRedClientTransmissions(float start, float stop, int clientInd
 	base += (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 5;
 	clientApps.Stop( Seconds (base));
 	base += (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 5;
-	  Ptr<DRedundancyClient> drc = DynamicCast<DRedundancyClient>(clientApps.Get(0));
-	  drc->SetFill("In the days of my youth I was told what it means to be a man-");
-	  drc->SetAddresses(serverAddress,PARALLEL);
+	Ptr<DRedundancyClient> drc = DynamicCast<DRedundancyClient>(clientApps.Get(0));
+	drc->SetFill("In the days of my youth I was told what it means to be a man-");
+	drc->SetAddresses(serverAddress,PARALLEL);
   }
 }
 
@@ -106,21 +106,33 @@ void SetupRandomCoverTraffic(float clientStart,float clientStop,float serverStar
           int serverindex;
 	  bool isClient = (i%2);
 	 if (! isClient) {
+		 printf("isClint = false\n");
 		serverindex = ((i-1) + (distance)) % numNodes;
 	 } else {
 		serverindex = i;
 	 }
+	 printf("Server index %d, i %d\n",serverindex,i);
 
 	 /*
           if (isClient){
 		  continue;
 
 	  }*/
+/*
+	 NS_LOG_INFO("Addr - > " << secondAddrs[i][0].GetAddress(0,0));GetAddress(0,0)
+	 */
+	 /*
+	  for (int i = 0; i< PARALLEL; i++ ) {
+		  for (int  j = 0; j <NODES; j++ ) {
+			  NS_LOG_INFO("ADDRESS COPY -> (" <<i <<","<<j<<") " << node2podsPtr[i][j].GetAddress(0,0));
+		  }
+	  }*/
 
-	  ApplicationContainer serverApps;  
 
 
 	  if ( ! isClient ) {
+	  	  ApplicationContainer serverApps;  
+		  printf("Current Index being applied to server %d\n",i);
 		  switch (mode) {
 			case ECHO: {
 				UdpEchoServerHelper echoServer (serverport);
@@ -143,13 +155,14 @@ void SetupRandomCoverTraffic(float clientStart,float clientStop,float serverStar
 	  } else {
 		  //Pick the server in the nearist pod
 		  //Right now the servers only communicate over a single channel serverIPs[0] should be serverIPs[rand()%PARALLEL]
+			  printf("Setting up client on node %d\n",i);
 		  switch (mode) {
 			case ECHO: {
 		  		SetupModularRandomEchoClient(clientStart,clientStop,serverport,secondAddrs[serverindex][0],nodes,i,interval,packetsize,NPackets);
 				break;
 		        }
 			case DRED: {
-		  		SetupModularRandomDRedClient(clientStart,clientStop,serverport,secondAddrs[serverindex],nodes,i,interval,packetsize,NPackets);
+		  		SetupModularRandomDRedClient(clientStart,clientStop,serverport,secondAddrs[serverindex-1],nodes,i,interval,packetsize,NPackets);
 				break;
 		        }
 			case RAID: {
@@ -176,7 +189,7 @@ main (int argc, char *argv[])
   float ClientProtocolInterval = 0.15;
   uint32_t ClientProtocolPacketSize = 256;
 
-  bool debug = false;
+  bool debug = true;
 
   //Command Line argument debugging code	  
   cmd.AddValue("CoverNPackets", "Number of packets for the cover to echo", CoverNPackets);
@@ -239,22 +252,26 @@ main (int argc, char *argv[])
       for (int coreS = 0; coreS < CORE;coreS++) {
           for (int pod = 0; pod < PODS; pod++) {
               nc_pod2core[i][(coreS*PODS) + pod] = NodeContainer(core[i].Get(coreS), pods[i].Get(pod));
-	      printf("(%d,%d,%d) fin(%d) get N %d\n",i,coreS,pod,((coreS * PODS) + pod ),nc_pod2core[i][(coreS * PODS) + pod].GetN());
           }
  	}
   }
 
 
+  int BaseRate = 40;
+  int ModRate = BaseRate / PARALLEL;	  
+  std::stringstream datarate;
+  datarate << ModRate << "Gbps";
+  printf("Data Rate %s\n", datarate.str().c_str());	 
+  
   PointToPointHelper pointToPoint;
   pointToPoint.SetQueue("ns3::DropTailQueue");
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("5Mbps"));
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue (datarate.str().c_str()));
   pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms"));
 
 
   //connect nodes to edges
   for (int i=0; i < PARALLEL; i++) {
       for (int n = 0; n < NODES; n++) {
-	  printf("Installing Node %d on Parallel %d\n",n,i);
           ndc_node2pod[i][n] = pointToPoint.Install(nc_node2pod[i][n]);
       }
   }
@@ -262,7 +279,6 @@ main (int argc, char *argv[])
   //connect pods to core
   for (int i=0; i < PARALLEL; i++) {
     for (int s=0; s < CORE * PODS; s++) {
-	printf("Installing Core %d on Parallel %d\n",s,i);
         ndc_pod2core[i][s] = pointToPoint.Install(nc_pod2core[i][s]);
     }
   }
@@ -280,21 +296,45 @@ main (int argc, char *argv[])
   Ipv4InterfaceContainer pods2core[PARALLEL][CORE*PODS];
 
   for (int i=0;i<PARALLEL;i++) {
-        std::stringstream addr;
-        addr << "10." << 1 + i << ".1.0";
-  	address.SetBase(addr.str().c_str(), "255.255.255.255");
+        std::stringstream n2pAddr;
+        n2pAddr << "10." << 1 + i << ".1.0";
+  	address.SetBase(n2pAddr.str().c_str(), "255.255.255.255");
 	      for (int n=0;n<NODES;n++) {
-	        printf("%d-%d\n",i,n);
 	      	node2pods[i][n] = address.Assign(ndc_node2pod[i][n]);
 	      }
-        std::stringstream addr2;
-        addr2 << "10." << 1 + i << ".2.0";
-  	address.SetBase(addr2.str().c_str(), "255.255.255.255");
+        std::stringstream p2cAddr;
+        p2cAddr << "10." << 1 + i << ".2.0";
+  	address.SetBase(p2cAddr.str().c_str(), "255.255.255.255");
 	      for (int c=0;c<CORE*PODS;c++) {
-	        printf("%d-%d\n",i,c);
 		pods2core[i][c] = address.Assign(ndc_pod2core[i][c]);
 	      }
   }
+  /*
+	std::stringstream n2pAddr;
+	n2pAddr << "10.0.0.0";
+  	address.SetBase(n2pAddr.str().c_str(), "255.255.255.255");
+  for (int i=0;i<PARALLEL;i++) {
+	      for (int n=0;n<NODES;n++) {
+	      	node2pods[i][n] = address.Assign(ndc_node2pod[i][n]);
+	      }
+	      for (int c=0;c<CORE*PODS;c++) {
+		pods2core[i][c] = address.Assign(ndc_pod2core[i][c]);
+	      }
+  }*/
+  /*
+  for (int i=0;i<PARALLEL;i++) {
+	  //Assign Parallel
+	  //A, B, C, D
+	  //A = 10
+	  //B = K + i
+	  for (int j=0;j < CORE; j++) {
+		  //Assign Core
+		  for ( int k=0;k< PODS;k++) {
+			//Calculate POD
+		  	for ( int l=0;l< NODE;l++) {
+				//Calculate Node
+*/
+
 
 
 
@@ -427,8 +467,8 @@ main (int argc, char *argv[])
 			CoverPacketSize,
 			coverserverport,
 			nodes, 
-			NODES, 
-			K, 
+			NODES, //total nodes
+			K/2, //distance
 
 			//&node2pods,
 			node2podsPtr,
