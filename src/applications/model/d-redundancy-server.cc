@@ -34,15 +34,12 @@
 
 #include "d-redundancy-server.h"
 
-#define SERVICE_BUFFER_SIZE 4096
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("DRedundancyServerApplication");
 
 NS_OBJECT_ENSURE_REGISTERED (DRedundancyServer);
 
-bool served_requests[SERVICE_BUFFER_SIZE];
-int min, max;
 
 TypeId
 DRedundancyServer::GetTypeId (void)
@@ -74,12 +71,12 @@ DRedundancyServer::~DRedundancyServer()
   NS_LOG_FUNCTION (this);
   m_socket = 0;
 
-  //Min and Max refer to the minumum and maximum request values received. These are yet to be implemented but will act as a high water mark in the future.
-  min = 0;
-  max = 0;
+  //Min and Max refer to the minumum and m_maximum request values received. These are yet to be implemented but will act as a high water mark in the future.
+  m_min = 0;
+  m_max = 0;
   //none of the requests have been served at init time, set each to false.
   for (int i=0;i<SERVICE_BUFFER_SIZE;i++) {
-	  served_requests[i] = false;
+	  m_served_requests[i] = false;
   }
 }
 
@@ -204,9 +201,9 @@ DRedundancyServer::HandleRead (Ptr<Socket> socket)
       //TODO maintain high and low watermark with at seperate tag
       int requestIndex = idtag.GetRecvIf();
 
-      if (!served_requests[requestIndex]) {
+      if (!m_served_requests[requestIndex]) {
 	      NS_LOG_INFO("First time request " << requestIndex << " Has arrived, responding");
-	      served_requests[requestIndex] = true;
+	      m_served_requests[requestIndex] = true;
 	      BroadcastWrite(packet,socket,from);
 	      VerboseServerSendPrint(from,packet);
       } else {

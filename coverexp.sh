@@ -23,30 +23,30 @@ function runExperiment () {
 	" 2>$filename 
 }
 
+
+
+
+function IncrementalIntervals() {
+	intervals=(0.1 0.01 0.001 0.0001 0.00001 0.000001 0.0000001)
+	ClientProtocolNPackets=4096
+	ClientProtocolInterval=0.01
+	ClientProtocolPacketSize=1024
+	CoverNPackets=1000
+	CoverInterval=$intervals
+	CoverPacketSize=1024
+	let 'exp=0'
+	for i in `seq  0.0000001 -0.00000001 0.00000001`; do
+		runExperiment $ClientProtocolNPackets $ClientProtocolInterval $ClientProtocolPacketSize $CoverNPackets $i $CoverPacketSize $exp &
+		let 'exp=exp+1'
+	done
+}
+
 if [ $1 == "debug" ];then
 	echo "debugging"
 	runExperiment 100 0.1 128 100 0.1 128 "debug"
 	exit 0
+elif [$1 == "incrementalIntervals"]; then
+	echo "running incremental intervals trial"
+	IncrementalIntervals
 fi
-
-intervals=(0.1 0.01 0.001 0.0001 0.00001 0.000001 0.0000001)
-ClientProtocolNPackets=4096
-ClientProtocolInterval=0.01
-ClientProtocolPacketSize=1024
-CoverNPackets=1000
-CoverInterval=$intervals
-CoverPacketSize=1024
-
-#let 'exp=0'
-#for i in ${intervals[@]}; do
-#	runExperiment $ClientProtocolNPackets $ClientProtocolInterval $ClientProtocolPacketSize $CoverNPackets $i $CoverPacketSize $exp &
-#	let 'exp=exp+1'
-#done
-
-let 'exp=0'
-for i in `seq  0.02 -0.001 0.001`; do
-	runExperiment $ClientProtocolNPackets $ClientProtocolInterval $ClientProtocolPacketSize $CoverNPackets $i $CoverPacketSize $exp &
-	let 'exp=exp+1'
-done
-
 

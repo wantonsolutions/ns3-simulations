@@ -49,6 +49,16 @@ void InstallDRedClientAttributes(DRedundancyClientHelper *dClient, int maxpacket
 }
 
 void InstallRandomDRedClientTransmissions(float start, float stop, int clientIndex, DRedundancyClientHelper *dClient, NodeContainer nodes, Address serverAddress[PARALLEL]) {
+
+        ApplicationContainer clientApps = dClient->Install (nodes.Get (clientIndex));
+	clientApps.Start( Seconds (start));
+	clientApps.Stop( Seconds (stop));
+	Ptr<DRedundancyClient> drc = DynamicCast<DRedundancyClient>(clientApps.Get(0));
+	drc->SetFill("In the days of my youth I was told what it means to be a man-");
+	drc->SetAddresses(serverAddress,PARALLEL);
+	drc->SetDistribution(DRedundancyClient::incremental);
+	
+	/*
   for (float base = start;base < stop; base += 1.0) {
         ApplicationContainer clientApps = dClient->Install (nodes.Get (clientIndex));
 	clientApps.Start( Seconds (base));
@@ -58,7 +68,7 @@ void InstallRandomDRedClientTransmissions(float start, float stop, int clientInd
 	Ptr<DRedundancyClient> drc = DynamicCast<DRedundancyClient>(clientApps.Get(0));
 	drc->SetFill("In the days of my youth I was told what it means to be a man-");
 	drc->SetAddresses(serverAddress,PARALLEL);
-  }
+  }*/
 }
 
 void SetupModularRandomDRedClient(float start, float stop, int serverPort, Address serverAddress[PARALLEL], NodeContainer nodes, int clientIndex, double interval, int packetsize, int maxpackets) {
@@ -106,12 +116,10 @@ void SetupRandomCoverTraffic(float clientStart,float clientStop,float serverStar
           int serverindex;
 	  bool isClient = (i%2);
 	 if (! isClient) {
-		 printf("isClint = false\n");
 		serverindex = ((i-1) + (distance)) % numNodes;
 	 } else {
 		serverindex = i;
 	 }
-	 printf("Server index %d, i %d\n",serverindex,i);
 
 	 /*
           if (isClient){
@@ -132,7 +140,6 @@ void SetupRandomCoverTraffic(float clientStart,float clientStop,float serverStar
 
 	  if ( ! isClient ) {
 	  	  ApplicationContainer serverApps;  
-		  printf("Current Index being applied to server %d\n",i);
 		  switch (mode) {
 			case ECHO: {
 				UdpEchoServerHelper echoServer (serverport);
@@ -155,7 +162,6 @@ void SetupRandomCoverTraffic(float clientStart,float clientStop,float serverStar
 	  } else {
 		  //Pick the server in the nearist pod
 		  //Right now the servers only communicate over a single channel serverIPs[0] should be serverIPs[rand()%PARALLEL]
-			  printf("Setting up client on node %d\n",i);
 		  switch (mode) {
 			case ECHO: {
 		  		SetupModularRandomEchoClient(clientStart,clientStop,serverport,secondAddrs[serverindex][0],nodes,i,interval,packetsize,NPackets);
@@ -189,7 +195,7 @@ main (int argc, char *argv[])
   float ClientProtocolInterval = 0.15;
   uint32_t ClientProtocolPacketSize = 256;
 
-  bool debug = true;
+  bool debug = false;
 
   //Command Line argument debugging code	  
   cmd.AddValue("CoverNPackets", "Number of packets for the cover to echo", CoverNPackets);
@@ -204,8 +210,8 @@ main (int argc, char *argv[])
 
   cmd.Parse (argc, argv);
 
-  printf("Client - NPackets %d, baseInterval %f packetSize %d \n",ClientProtocolNPackets,ClientProtocolInterval,ClientProtocolPacketSize);
-  printf("Cover - NPackets %d, baseInterval %f packetSize %d \n",CoverNPackets,CoverInterval,CoverPacketSize);
+  //printf("Client - NPackets %d, baseInterval %f packetSize %d \n",ClientProtocolNPackets,ClientProtocolInterval,ClientProtocolPacketSize);
+  //printf("Cover - NPackets %d, baseInterval %f packetSize %d \n",CoverNPackets,CoverInterval,CoverPacketSize);
   
   Time::SetResolution (Time::NS);
   LogComponentEnable ("UdpEchoClientApplication", LOG_LEVEL_WARN);
@@ -257,11 +263,11 @@ main (int argc, char *argv[])
   }
 
 
-  int BaseRate = 40;
+  int BaseRate = 1;
   int ModRate = BaseRate / PARALLEL;	  
   std::stringstream datarate;
   datarate << ModRate << "Gbps";
-  printf("Data Rate %s\n", datarate.str().c_str());	 
+  //printf("Data Rate %s\n", datarate.str().c_str());	 
   
   PointToPointHelper pointToPoint;
   pointToPoint.SetQueue("ns3::DropTailQueue");
@@ -346,7 +352,7 @@ main (int argc, char *argv[])
   int coverserverport = 10;
   float serverStart = 1.0;
   float clientStart = 2.0;
-  float clientStop = 100.0;
+  float clientStop = 1000.0;
 
   float duration = clientStop;
   float serverStop = duration;
@@ -468,7 +474,7 @@ main (int argc, char *argv[])
 			coverserverport,
 			nodes, 
 			NODES, //total nodes
-			K/2, //distance
+			((K*K)/2), //distance
 
 			//&node2pods,
 			node2podsPtr,

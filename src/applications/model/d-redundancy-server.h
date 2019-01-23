@@ -24,6 +24,7 @@
 #include "ns3/ptr.h"
 #include "ns3/address.h"
 
+#define SERVICE_BUFFER_SIZE 4096
 namespace ns3 {
 
 class Socket;
@@ -86,6 +87,10 @@ private:
   Address m_local; //!< local multicast address //Todo get multiple addresses
 
   uint8_t m_parallel;
+
+//Structs used to keep track of client requests
+	bool m_served_requests[SERVICE_BUFFER_SIZE];
+	int m_min, m_max;
 
 
 };

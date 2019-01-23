@@ -25,6 +25,9 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/traced-callback.h"
 
+
+#define REQUEST_BUFFER_SIZE 4096
+
 namespace ns3 {
 
 class Socket;
@@ -142,6 +145,20 @@ public:
 
   void VerboseSendLogging(Address to);
 
+// Custom types
+// Distribution refers to different distributions of interval delays, and of packet sizes
+  enum distribution
+  {
+	  nodist = 0,
+	  incremental = 1,
+	  evenuniform = 2,
+	  exponential = 3,
+	  possion = 4
+  };
+  void SetDistribution(enum distribution dist);
+  Time SetInterval();
+
+
 protected:
   virtual void DoDispose (void);
 
@@ -190,8 +207,19 @@ private:
   EventId m_sendEvent; //!< Event to send the next packet
   uint8_t m_parallel; //!< Level of paralalelization in the fat tree
 
+
+  Time m_d_requests[REQUEST_BUFFER_SIZE];
+
   /// Callbacks for tracing the packet Tx events
   TracedCallback<Ptr<const Packet> > m_txTrace;
+
+
+  distribution m_dist;
+  
+  double incrementalDistributionNext(double interval, double rate);
+  int evenUniformDistributionNext(int min, int max);
+  int exponentailDistributionNext(int min, int max);
+  int poissonDistributionNext(int min, int max);
 
 };
 

@@ -35,12 +35,10 @@
 #include <iostream>
 #include <fstream>
 
-#define REQUEST_BUFFER_SIZE 4096
 
 
 namespace ns3 {
 	
-	Time d_requests[REQUEST_BUFFER_SIZE];
 
 
 NS_LOG_COMPONENT_DEFINE ("DRedundancyClientApplication");
@@ -338,6 +336,7 @@ DRedundancyClient::SetFill (uint8_t *fill, uint32_t fillSize, uint32_t dataSize)
 void 
 DRedundancyClient::ScheduleTransmit (Time dt)
 {
+
   NS_LOG_FUNCTION (this << dt);
   m_sendEvent = Simulator::Schedule (dt, &DRedundancyClient::Send, this);
 }
@@ -389,7 +388,7 @@ DRedundancyClient::Send (void)
   NS_LOG_INFO("request Index: " <<idtag.GetRecvIf());
   //printf("Sending Packet %d\n",m_sent);
   p->AddPacketTag(idtag);
-  d_requests[m_sent % REQUEST_BUFFER_SIZE] = Simulator::Now();
+  m_d_requests[m_sent % REQUEST_BUFFER_SIZE] = Simulator::Now();
 
     // inserting values by using [] operator 
     //umap["GeeksforGeeks"] = 10; 
@@ -405,9 +404,47 @@ DRedundancyClient::Send (void)
   if (m_sent < m_count) 
     {
       //printf("Scheduling next Transmission for %d in the future\n",int(m_interval.GetNanoSeconds()));
+      m_interval = SetInterval();
       ScheduleTransmit (m_interval);
     }
 	
+}
+
+Time DRedundancyClient::SetInterval() {
+  Time interval;
+  switch (m_dist) {
+  case nodist:
+	  {
+		interval = m_interval;
+		break;
+	  }
+	  case incremental:
+	  {
+		double nextTime = incrementalDistributionNext((double) m_interval.GetSeconds(), 0.9);
+		interval = Time(Seconds(nextTime));
+		break;
+	  }
+	  case evenuniform:
+	  {
+		double nextTime = evenUniformDistributionNext(0, 0);
+		interval = Time(Seconds(nextTime));
+		break;
+	  }
+	  case exponential:
+	  {
+		double nextTime = (double) exponentailDistributionNext(0, 0);
+		interval = Time(Seconds(nextTime));
+		break;
+	  }
+	  case possion:
+	  {
+		double nextTime = (double) poissonDistributionNext(0, 0);
+		interval = Time(Seconds(nextTime));
+		break;
+	  }
+  }
+  return interval;
+
 }
 
 void
@@ -429,17 +466,17 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 	      
 	      int requestIndex = int(idtag.GetRecvIf()) % REQUEST_BUFFER_SIZE;
 	      NS_LOG_FUNCTION("request Index: " << requestIndex);
-	      if (d_requests[requestIndex] > Time(0)) {
+	      if (m_d_requests[requestIndex] > Time(0)) {
 		      NS_LOG_INFO("New Client Response " << requestIndex << " Received");
-		      Time difference = Simulator::Now() - d_requests[requestIndex];
-		      d_requests[requestIndex] = Time(0);
+		      Time difference = Simulator::Now() - m_d_requests[requestIndex];
+		      m_d_requests[requestIndex] = Time(0);
 
 		      //Peers connected on port 11 are the ones being monitered. The
 		      //differnece time being logged is the end to end latency of a
 		      //request.
 		      //TODO Add bandwidth to the measure of each request.
-		       NS_LOG_WARN(difference.GetNanoSeconds() << "-" << m_sent);
-		       //NS_LOG_WARN(difference.GetNanoSeconds()); 
+		       //NS_LOG_WARN(difference.GetNanoSeconds() << "-" << m_sent);
+		       NS_LOG_WARN(difference.GetNanoSeconds()); 
 		       /*
 		      if (m_peerPort == 11) {
 			NS_LOG_INFO(difference.GetNanoSeconds());
@@ -490,4 +527,27 @@ DRedundancyClient::VerboseReceiveLogging(Address from, Ptr<Packet> packet) {
 		       Inet6SocketAddress::ConvertFrom (from).GetPort ());
 	}
 }
+
+
+  void DRedundancyClient::SetDistribution(enum distribution dist){
+	  m_dist = dist;
+  }
+
+  double DRedundancyClient::incrementalDistributionNext(double current, double rate) {
+	  return current * rate;
+	
+  }
+
+  int DRedundancyClient::evenUniformDistributionNext(int min, int max) {
+	  return 0;
+  }
+
+  int DRedundancyClient::exponentailDistributionNext(int min, int max) {
+	  return 0;
+  }
+
+  int DRedundancyClient::poissonDistributionNext(int min, int max) {
+	  return 0;
+  }
+
 } // Namespace ns3
