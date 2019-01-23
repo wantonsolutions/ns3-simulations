@@ -57,6 +57,7 @@ void InstallRandomDRedClientTransmissions(float start, float stop, int clientInd
 	drc->SetFill("In the days of my youth I was told what it means to be a man-");
 	drc->SetAddresses(serverAddress,PARALLEL);
 	drc->SetDistribution(DRedundancyClient::incremental);
+	//drc->SetDistribution(DRedundancyClient::nodist);
 	
 	/*
   for (float base = start;base < stop; base += 1.0) {
@@ -266,7 +267,7 @@ main (int argc, char *argv[])
   int BaseRate = 1;
   int ModRate = BaseRate / PARALLEL;	  
   std::stringstream datarate;
-  datarate << ModRate << "Gbps";
+  datarate << ModRate << "Mbps";
   //printf("Data Rate %s\n", datarate.str().c_str());	 
   
   PointToPointHelper pointToPoint;

@@ -421,6 +421,7 @@ Time DRedundancyClient::SetInterval() {
 	  case incremental:
 	  {
 		double nextTime = incrementalDistributionNext((double) m_interval.GetSeconds(), 0.9);
+		printf("Current Interval - %f, next Interval %f",(float)m_interval.GetSeconds(), nextTime);
 		interval = Time(Seconds(nextTime));
 		break;
 	  }

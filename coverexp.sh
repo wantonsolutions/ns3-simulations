@@ -43,7 +43,7 @@ function IncrementalIntervals() {
 
 if [ $1 == "debug" ];then
 	echo "debugging"
-	runExperiment 100 0.1 128 100 0.1 128 "debug"
+	runExperiment 100 1.0 128 1000 1.0 128 "debug"
 	exit 0
 elif [$1 == "incrementalIntervals"]; then
 	echo "running incremental intervals trial"
