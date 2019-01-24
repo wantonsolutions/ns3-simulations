@@ -279,8 +279,8 @@ main (int argc, char *argv[])
   //pointToPoint.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(5));
   //pointToPoint.SetQueue ("ns3::DropTailQueue", "MaxSize", StringValue ("50p"));
   //pointToPoint.SetDeviceAttribute ("DataRate", StringValue (datarate.str().c_str()));
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue("1Gbps"));
-  pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms"));
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue("1Mbps"));
+  pointToPoint.SetChannelAttribute ("Delay", StringValue ("1.6ms"));
 
 
   //connect nodes to edges

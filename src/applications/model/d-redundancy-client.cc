@@ -475,70 +475,74 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 	      
 	      int requestIndex = int(idtag.GetRecvIf()) % REQUEST_BUFFER_SIZE;
 	      int rttIndex = int(idtag.GetRecvIf()) % RTT_BUFFER_SIZE;
-
+	      
 	      NS_LOG_FUNCTION("request Index: " << requestIndex);
 	      if (m_d_requests_received[requestIndex] == false) {
 		      m_d_requests_received[requestIndex] = true;
 		      NS_LOG_INFO("New Client Response " << requestIndex << " Received");
+		      Time now = Simulator::Now();
+		      Time difference = now - m_d_requests[requestIndex];
+		      NS_LOG_INFO("Index " << requestIndex << "Start " << m_d_requests[requestIndex].GetNanoSeconds() << " Finish " << now.GetNanoSeconds() << " Difference " << difference.GetNanoSeconds());
+
+		      m_recentRTTs[rttIndex] = difference;
+
+		      //track minimum
+		      if (difference.GetNanoSeconds() < m_minRTT) {
+			      m_minRTT = difference.GetNanoSeconds();
+		      }
+		      //Calculate a bound on the average computation
+		      int bound = RTT_BUFFER_SIZE;
+		      if (bound > requestIndex) {
+			      bound = requestIndex+1;
+		      }
+		      //printf("bound calculatedi %d\n", bound);
+		      
+		      //Calculate average rtt
+		      int64_t average = 0;
+		      for (int i =0; i< bound;i++) {
+			      average += m_recentRTTs[i].GetNanoSeconds();
+		      }
+		      average = average / bound;
+		      //printf("average calculated %ld\n", average);
+
+		      //cacluate standard dev
+		      int64_t diffSquare = 0;
+		      for (int i =0; i< bound;i++) {
+			      diffSquare += (average - m_recentRTTs[i].GetNanoSeconds()) * (average - m_recentRTTs[i].GetNanoSeconds());
+		      }
+		      //printf("diff square calculated %ld\n",diffSquare);
+		      diffSquare = diffSquare / bound;
+		      //printf("bound %d\n",bound);
+		      //Cheap square
+		      int64_t std = 0;
+		      for (int64_t i=0;(i*i) < diffSquare;i++) {
+			      std = i;
+		      }
+		      printf("min %ld, average %ld, std %ld level m_d_level %d \n",m_minRTT,average,std,m_d_level);
+		      //Make a decision to pull back
+		      //if (average > (m_minRTT + std) && m_d_level > 1) {
+		      if (average > (m_minRTT + (m_minRTT/2)) && m_d_level > 1) {
+			      printf("Pulling Back from D level %d to %d",m_d_level,m_d_level - 1);
+			      m_d_level--;
+		      //} else if (average < (m_minRTT + std) && m_d_level < m_parallel) {
+		      } else if (average < (m_minRTT + (m_minRTT/2)) && m_d_level < m_parallel) {
+			      printf("Upgrading from from D level %d to %d",m_d_level,m_d_level + 1);
+			      m_d_level++;
+		      }
+		      //Peers connected on port 11 are the ones being monitered. The
+		      //differnece time being logged is the end to end latency of a
+		      //request.
+		      //TODO Add bandwidth to the measure of each request.
+		       //NS_LOG_WARN(difference.GetNanoSeconds() << "-" << m_sent);
+		       NS_LOG_WARN(difference.GetNanoSeconds()); 
 	      } else {
 		      NS_LOG_INFO("Old Client Response " << requestIndex << " Received");
 	      }
-	      Time now = Simulator::Now();
-	      Time difference = now - m_d_requests[requestIndex];
-	      NS_LOG_INFO("Index " << requestIndex << "Start " << m_d_requests[requestIndex].GetNanoSeconds() << " Finish " << now.GetNanoSeconds() << " Difference " << difference.GetNanoSeconds());
-
-	      m_recentRTTs[rttIndex] = difference;
-
-	      //track minimum
-	      if (difference.GetNanoSeconds() < m_minRTT) {
-		      m_minRTT = difference.GetNanoSeconds();
-	      }
-	      //Calculate a bound on the average computation
-	      int bound = RTT_BUFFER_SIZE;
-	      if (bound > requestIndex) {
-		      bound = requestIndex+1;
-	      }
-	      //printf("bound calculated\n");
-	      
-	      //Calculate average rtt
-	      int64_t average = 0;
-	      for (int i =0; i< bound;i++) {
-		      average += m_recentRTTs[i].GetNanoSeconds();
-	      }
-	      average = average / bound;
-	      //printf("average calculated");
-
-	      //cacluate standard dev
-	      int64_t diffSquare = 0;
-	      for (int i =0; i< bound;i++) {
-		      diffSquare += (average - m_recentRTTs[i].GetNanoSeconds()) * (average - m_recentRTTs[i].GetNanoSeconds());
-	      }
-	      diffSquare = diffSquare / bound;
-	      //Cheap square
-	      int64_t std = 0;
-	      for (int i=0;(i*i) < diffSquare;i++) {
-		      std = i;
-	      }
-	      printf("min %ld, average %ld, std %ld\n",m_minRTT,average,std);
-	      //Make a decision to pull back
-	      if (average > (m_minRTT + std*3) && m_d_level > 1) {
-		      printf("Pulling Back from D level %d to %d",m_d_level,m_d_level - 1);
-		      m_d_level--;
-	      } else if (average < (m_minRTT + std*3) && m_d_level < m_parallel) {
-		      printf("Upgrading from from D level %d to %d",m_d_level,m_d_level + 1);
-		      m_d_level++;
-	      }
 
 
 	      
 	      
 
-	      //Peers connected on port 11 are the ones being monitered. The
-	      //differnece time being logged is the end to end latency of a
-	      //request.
-	      //TODO Add bandwidth to the measure of each request.
-	       //NS_LOG_WARN(difference.GetNanoSeconds() << "-" << m_sent);
-	       NS_LOG_WARN(difference.GetNanoSeconds()); 
 	       /*
 	      if (m_peerPort == 11) {
 		NS_LOG_INFO(difference.GetNanoSeconds());
@@ -600,7 +604,7 @@ DRedundancyClient::VerboseReceiveLogging(Address from, Ptr<Packet> packet) {
 	  double f = (double)rand() / RAND_MAX;
 	  double offset = fMin + f * (fMax - fMin);
 	  double ret = nextRate + offset;
-	  printf("New Rate %f\n",ret);
+	  //printf("New Rate %f\n",ret);
 	  return ret;
 	
   }
