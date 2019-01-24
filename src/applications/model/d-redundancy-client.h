@@ -27,6 +27,7 @@
 
 
 #define REQUEST_BUFFER_SIZE 4096
+#define RTT_BUFFER_SIZE 36
 
 namespace ns3 {
 
@@ -209,6 +210,13 @@ private:
 
 
   Time m_d_requests[REQUEST_BUFFER_SIZE];
+  bool m_d_requests_received[REQUEST_BUFFER_SIZE];
+  uint8_t m_d_level;
+  uint8_t m_root_channel;
+
+  int64_t m_minRTT;
+  
+  Time m_recentRTTs[RTT_BUFFER_SIZE];
 
   /// Callbacks for tracing the packet Tx events
   TracedCallback<Ptr<const Packet> > m_txTrace;

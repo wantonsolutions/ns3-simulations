@@ -201,9 +201,13 @@ DRedundancyClient::StartApplication (void)
   m_sockets = new Ptr<Socket>[m_parallel];
   ScheduleTransmit (Seconds (0.));
   m_parallel = 3;
+  m_d_level = m_parallel;
+  m_minRTT = 999999999;
+  m_root_channel = rand()%m_parallel;
   NS_LOG_INFO("D-Red client PARALLEL = " << m_parallel);
   for (int i=0;i<m_parallel;i++) {
 	NS_LOG_INFO("Starting application setting up socket " << i);
+	//printf("Random Starting Channel %d\n",rand()%m_parallel);
 	Ptr<Node> n = GetNode();
 	Ptr<NetDevice> dev = n->GetDevice(i);
 	m_sockets[i] = ConnectSocket(m_peerAddresses[i],m_peerPort,dev);
@@ -390,6 +394,7 @@ DRedundancyClient::Send (void)
   //printf("Sending Packet %d\n",m_sent);
   p->AddPacketTag(idtag);
   m_d_requests[send_index] = Simulator::Now();
+  m_d_requests_received[send_index] = false;
 
     // inserting values by using [] operator 
     //umap["GeeksforGeeks"] = 10; 
@@ -399,8 +404,10 @@ DRedundancyClient::Send (void)
   m_sent++;
   m_txTrace (p);
   for (int i=0;i<m_parallel;i++) {
-  	m_sockets[i]->Send (p);
-	VerboseSendLogging(m_peerAddresses[i]);
+	if (( (i + m_root_channel) % m_parallel) < m_d_level) {
+		m_sockets[i]->Send (p);
+		VerboseSendLogging(m_peerAddresses[i]);
+  	}
   }
   if (m_sent < m_count) 
     {
@@ -421,8 +428,8 @@ Time DRedundancyClient::SetInterval() {
 	  }
 	  case incremental:
 	  {
-		double nextTime = incrementalDistributionNext((double) m_interval.GetSeconds(), 0.9);
-		printf("Current Interval - %f, next Interval %f",(float)m_interval.GetSeconds(), nextTime);
+		double nextTime = incrementalDistributionNext((double) m_interval.GetSeconds(), 0.99);
+		//printf("Current Interval - %f, next Interval %f\n",(float)m_interval.GetSeconds(), nextTime);
 		interval = Time(Seconds(nextTime));
 		break;
 	  }
@@ -467,27 +474,75 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 	      //index so that the state on the server can be relieved.
 	      
 	      int requestIndex = int(idtag.GetRecvIf()) % REQUEST_BUFFER_SIZE;
-	      NS_LOG_FUNCTION("request Index: " << requestIndex);
-	      if (m_d_requests[requestIndex] > Time(0)) {
-		      NS_LOG_INFO("New Client Response " << requestIndex << " Received");
-		      Time now = Simulator::Now();
-		      Time difference = now - m_d_requests[requestIndex];
-		      NS_LOG_INFO("Index " << requestIndex << "Start " << m_d_requests[requestIndex].GetNanoSeconds() << " Finish " << now.GetNanoSeconds() << " Difference " << difference.GetNanoSeconds());
-		      m_d_requests[requestIndex] = Time(0);
+	      int rttIndex = int(idtag.GetRecvIf()) % RTT_BUFFER_SIZE;
 
-		      //Peers connected on port 11 are the ones being monitered. The
-		      //differnece time being logged is the end to end latency of a
-		      //request.
-		      //TODO Add bandwidth to the measure of each request.
-		       //NS_LOG_WARN(difference.GetNanoSeconds() << "-" << m_sent);
-		       NS_LOG_WARN(difference.GetNanoSeconds()); 
-		       /*
-		      if (m_peerPort == 11) {
-			NS_LOG_INFO(difference.GetNanoSeconds());
-		      }*/
+	      NS_LOG_FUNCTION("request Index: " << requestIndex);
+	      if (m_d_requests_received[requestIndex] == false) {
+		      m_d_requests_received[requestIndex] = true;
+		      NS_LOG_INFO("New Client Response " << requestIndex << " Received");
 	      } else {
 		      NS_LOG_INFO("Old Client Response " << requestIndex << " Received");
 	      }
+	      Time now = Simulator::Now();
+	      Time difference = now - m_d_requests[requestIndex];
+	      NS_LOG_INFO("Index " << requestIndex << "Start " << m_d_requests[requestIndex].GetNanoSeconds() << " Finish " << now.GetNanoSeconds() << " Difference " << difference.GetNanoSeconds());
+
+	      m_recentRTTs[rttIndex] = difference;
+
+	      //track minimum
+	      if (difference.GetNanoSeconds() < m_minRTT) {
+		      m_minRTT = difference.GetNanoSeconds();
+	      }
+	      //Calculate a bound on the average computation
+	      int bound = RTT_BUFFER_SIZE;
+	      if (bound > requestIndex) {
+		      bound = requestIndex+1;
+	      }
+	      //printf("bound calculated\n");
+	      
+	      //Calculate average rtt
+	      int64_t average = 0;
+	      for (int i =0; i< bound;i++) {
+		      average += m_recentRTTs[i].GetNanoSeconds();
+	      }
+	      average = average / bound;
+	      //printf("average calculated");
+
+	      //cacluate standard dev
+	      int64_t diffSquare = 0;
+	      for (int i =0; i< bound;i++) {
+		      diffSquare += (average - m_recentRTTs[i].GetNanoSeconds()) * (average - m_recentRTTs[i].GetNanoSeconds());
+	      }
+	      diffSquare = diffSquare / bound;
+	      //Cheap square
+	      int64_t std = 0;
+	      for (int i=0;(i*i) < diffSquare;i++) {
+		      std = i;
+	      }
+	      printf("min %ld, average %ld, std %ld\n",m_minRTT,average,std);
+	      //Make a decision to pull back
+	      if (average > (m_minRTT + std*3) && m_d_level > 1) {
+		      printf("Pulling Back from D level %d to %d",m_d_level,m_d_level - 1);
+		      m_d_level--;
+	      } else if (average < (m_minRTT + std*3) && m_d_level < m_parallel) {
+		      printf("Upgrading from from D level %d to %d",m_d_level,m_d_level + 1);
+		      m_d_level++;
+	      }
+
+
+	      
+	      
+
+	      //Peers connected on port 11 are the ones being monitered. The
+	      //differnece time being logged is the end to end latency of a
+	      //request.
+	      //TODO Add bandwidth to the measure of each request.
+	       //NS_LOG_WARN(difference.GetNanoSeconds() << "-" << m_sent);
+	       NS_LOG_WARN(difference.GetNanoSeconds()); 
+	       /*
+	      if (m_peerPort == 11) {
+		NS_LOG_INFO(difference.GetNanoSeconds());
+	      }*/
 	      VerboseReceiveLogging(from,packet);
       }
     }
@@ -538,7 +593,15 @@ DRedundancyClient::VerboseReceiveLogging(Address from, Ptr<Packet> packet) {
   }
 
   double DRedundancyClient::incrementalDistributionNext(double current, double rate) {
-	  return current * rate;
+	  double nextRate = current * rate;
+	  double percentbound = nextRate * 0.1;
+	  double fMin = 0.0 - percentbound;
+	  double fMax = 0.0 + percentbound;
+	  double f = (double)rand() / RAND_MAX;
+	  double offset = fMin + f * (fMax - fMin);
+	  double ret = nextRate + offset;
+	  printf("New Rate %f\n",ret);
+	  return ret;
 	
   }
 
