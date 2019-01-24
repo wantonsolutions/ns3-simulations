@@ -54,7 +54,7 @@ void InstallRandomDRedClientTransmissions(float start, float stop, int clientInd
 	clientApps.Start( Seconds (start));
 	clientApps.Stop( Seconds (stop));
 	Ptr<DRedundancyClient> drc = DynamicCast<DRedundancyClient>(clientApps.Get(0));
-	drc->SetFill("In the days of my youth I was told what it means to be a man-");
+	//drc->SetFill("In the days of my youth I was told what it means to be a man-");
 	drc->SetAddresses(serverAddress,PARALLEL);
 	drc->SetDistribution(DRedundancyClient::incremental);
 	//drc->SetDistribution(DRedundancyClient::nodist);
@@ -269,17 +269,27 @@ main (int argc, char *argv[])
   std::stringstream datarate;
   datarate << ModRate << "Mbps";
   //printf("Data Rate %s\n", datarate.str().c_str());	 
-  
+ 
+
+  //Config::SetDefault ("ns3::QueueBase::MaxSize", StringValue ("100p"));
+  //Config::SetDefault ("ns3::QueueBase::MaxSize", QueueSizeValue(QueueSize("1p")));
   PointToPointHelper pointToPoint;
-  pointToPoint.SetQueue("ns3::DropTailQueue");
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue (datarate.str().c_str()));
-  pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms"));
+  //pointToPoint.SetQueue("ns3::DropTailQueue", "MaxSize", StringValue("3p"));
+  //pointToPoint.SetQueue("ns3::DropTailQueue", "MaxPackets", StringValue("3"));
+  //pointToPoint.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(5));
+  //pointToPoint.SetQueue ("ns3::DropTailQueue", "MaxSize", StringValue ("50p"));
+  //pointToPoint.SetDeviceAttribute ("DataRate", StringValue (datarate.str().c_str()));
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue("1Gbps"));
+  pointToPoint.SetChannelAttribute ("Delay", StringValue ("0ms"));
 
 
   //connect nodes to edges
   for (int i=0; i < PARALLEL; i++) {
       for (int n = 0; n < NODES; n++) {
           ndc_node2pod[i][n] = pointToPoint.Install(nc_node2pod[i][n]);
+	  //Ptr<DropTailQueue> queue = DynamicCast<DropTailQueue> (DynamicCast<PointToPointNetDevice> (ndc_node2pod[i][n].Get (0))->GetQueue ());
+          //queue->SetAttribute ("MaxPackets", UintegerValue (250));
+	  
       }
   }
 
@@ -398,7 +408,7 @@ main (int argc, char *argv[])
 
 		  clientApps = dClient.Install (nodes.Get (clientIndex));
 		  Ptr<UdpEchoClient> drc = DynamicCast<UdpEchoClient>(clientApps.Get(0));
-		  drc->SetFill("In the days of my youth I was told what it means to be a man-");
+		  //drc->SetFill("In the days of my youth I was told what it means to be a man-");
 		  break;
 	}
 	case DRED:
@@ -414,7 +424,7 @@ main (int argc, char *argv[])
 
 		  clientApps = dClient.Install (nodes.Get (clientIndex));
 		  Ptr<DRedundancyClient> drc = DynamicCast<DRedundancyClient>(clientApps.Get(0));
-		  drc->SetFill("In the days of my youth I was told what it means to be a man-");
+		  //drc->SetFill("In the days of my youth I was told what it means to be a man-");
 		  drc->SetAddresses(serverIPS,PARALLEL);
 		  break;
 	}
@@ -431,7 +441,7 @@ main (int argc, char *argv[])
 
 		  clientApps = dClient.Install (nodes.Get (clientIndex));
 		  Ptr<RaidClient> drc = DynamicCast<RaidClient>(clientApps.Get(0));
-		  drc->SetFill("In the days of my youth I was told what it means to be a man-");
+		  //drc->SetFill("In the days of my youth I was told what it means to be a man-");
 		  drc->SetAddresses(serverIPS,PARALLEL);
 		  break;
 	  }

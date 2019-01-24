@@ -384,11 +384,12 @@ DRedundancyClient::Send (void)
   
   //PdcpTag idtag;
   Ipv4PacketInfoTag idtag;
-  idtag.SetRecvIf(m_sent);
+  uint32_t send_index = m_sent % REQUEST_BUFFER_SIZE;
+  idtag.SetRecvIf(send_index);
   NS_LOG_INFO("request Index: " <<idtag.GetRecvIf());
   //printf("Sending Packet %d\n",m_sent);
   p->AddPacketTag(idtag);
-  m_d_requests[m_sent % REQUEST_BUFFER_SIZE] = Simulator::Now();
+  m_d_requests[send_index] = Simulator::Now();
 
     // inserting values by using [] operator 
     //umap["GeeksforGeeks"] = 10; 
@@ -469,7 +470,9 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 	      NS_LOG_FUNCTION("request Index: " << requestIndex);
 	      if (m_d_requests[requestIndex] > Time(0)) {
 		      NS_LOG_INFO("New Client Response " << requestIndex << " Received");
-		      Time difference = Simulator::Now() - m_d_requests[requestIndex];
+		      Time now = Simulator::Now();
+		      Time difference = now - m_d_requests[requestIndex];
+		      NS_LOG_INFO("Index " << requestIndex << "Start " << m_d_requests[requestIndex].GetNanoSeconds() << " Finish " << now.GetNanoSeconds() << " Difference " << difference.GetNanoSeconds());
 		      m_d_requests[requestIndex] = Time(0);
 
 		      //Peers connected on port 11 are the ones being monitered. The
