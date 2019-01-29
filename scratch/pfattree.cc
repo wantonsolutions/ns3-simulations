@@ -20,6 +20,10 @@
 #include "ns3/point-to-point-module.h"
 #include "ns3/applications-module.h"
 
+#include <string>
+#include <fstream>
+#include <stdint.h>
+
 #define ECHO 0
 #define DRED 1
 #define RAID 2
@@ -209,20 +213,68 @@ main (int argc, char *argv[])
 
   bool debug = false;
 
+  char * ManifestName = (char*)"manifest.config";
+
+  const char * CoverNPacketsString = "CoverNPackets";
+  const char * CoverIntervalString = "CoverInterval";
+  const char * CoverPacketSizeString = "CoverPacketSize";
+
+  const char * ClientProtocolNPacketsString = "ClientProtocolNPackets";
+  const char * ClientProtocolIntervalString = "ClientProtocolInterval";
+  const char * ClientProtocolPacketSizeString = "ClientProtocolPacketSize";
+
+  const char * ManifestNameString = "ManifestName";
+
+  const char * DebugString = "Debug";
+  const char * ModeString = "Mode";
+
+  const char * KString = "K";
+  const char * TopologyString = "Topology";
+  const char * Topology = "PFatTree";
+  const char * ParallelString = "Parallel";
+
+
   //Command Line argument debugging code	  
-  cmd.AddValue("CoverNPackets", "Number of packets for the cover to echo", CoverNPackets);
-  cmd.AddValue("CoverInterval", "Interval at which cover traffic broadcasts", CoverInterval);
-  cmd.AddValue("CoverPacketSize", "The Size of the packet used by the cover traffic", CoverPacketSize);
+  cmd.AddValue(CoverNPacketsString, "Number of packets for the cover to echo", CoverNPackets);
+  cmd.AddValue(CoverIntervalString, "Interval at which cover traffic broadcasts", CoverInterval);
+  cmd.AddValue(CoverPacketSizeString, "The Size of the packet used by the cover traffic", CoverPacketSize);
 
-  cmd.AddValue("ClientProtocolNPackets", "Number of packets to echo", ClientProtocolNPackets);
-  cmd.AddValue("ClientProtocolInterval", "Interval at which a protocol client makes requests", ClientProtocolInterval);
-  cmd.AddValue("ClientProtocolPacketSize", "Interval at which a protocol client makes requests", ClientProtocolPacketSize);
+  cmd.AddValue(ClientProtocolNPacketsString, "Number of packets to echo", ClientProtocolNPackets);
+  cmd.AddValue(ClientProtocolIntervalString, "Interval at which a protocol client makes requests", ClientProtocolInterval);
+  cmd.AddValue(ClientProtocolPacketSizeString, "Interval at which a protocol client makes requests", ClientProtocolPacketSize);
 
-  cmd.AddValue("Debug", "Print all log level info statements for all clients", debug);
-  cmd.AddValue("Mode", "The Composition of the clients ECHO=0 DRED=1 RAID=2", mode);
+  cmd.AddValue(ManifestNameString, "Then name of the ouput manifest (includes all configurations)", ManifestName);
+
+  cmd.AddValue(DebugString, "Print all log level info statements for all clients", debug);
+  cmd.AddValue(ModeString, "The Composition of the clients ECHO=0 DRED=1 RAID=2", mode);
 
   cmd.Parse (argc, argv);
   //mode = DRED;
+  //
+  //Open a file to write out manifest
+  std::string manifestFilename = "manifist.cofig";
+  std::ios_base::openmode openmode = std::ios_base::out | std::ios_base::trunc;
+  //ofstream->open (manifestFilename.c_str (), openmode);
+  OutputStreamWrapper StreamWrapper = OutputStreamWrapper(manifestFilename, openmode);
+  //StreamWrapper->SetStream(ofstream);
+	std::ostream *stream = StreamWrapper.GetStream();
+
+	*stream << CoverNPacketsString << ":" << CoverNPackets << "\n";
+	*stream << CoverIntervalString << ":" << CoverInterval <<"\n";
+	*stream << CoverPacketSizeString << ":" << CoverPacketSize <<"\n";
+	*stream << ClientProtocolNPacketsString<< ":" << ClientProtocolNPackets <<"\n";
+	*stream << ClientProtocolIntervalString << ":" << ClientProtocolInterval <<"\n";
+	*stream << ClientProtocolPacketSizeString << ":" << ClientProtocolPacketSize <<"\n";
+	*stream << ManifestNameString << ":" << ManifestName <<"\n";
+	*stream << DebugString << ":" << debug <<"\n";
+	*stream << ModeString << ":" << mode <<"\n";
+	*stream << KString << ":" << K <<"\n";
+	*stream << TopologyString << ":" << Topology <<"\n";
+	*stream << ParallelString << ":" << PARALLEL <<"\n";
+
+
+	
+  return 0;
 
   //printf("Client - NPackets %d, baseInterval %f packetSize %d \n",ClientProtocolNPackets,ClientProtocolInterval,ClientProtocolPacketSize);
   //printf("Cover - NPackets %d, baseInterval %f packetSize %d \n",CoverNPackets,CoverInterval,CoverPacketSize);

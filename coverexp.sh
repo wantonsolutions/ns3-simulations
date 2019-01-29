@@ -58,7 +58,7 @@ echo $1
 
 if [[ $1 == "debug" ]];then
 	echo "debugging"
-	runExperiment 1 1.0 128 1000 1.0 4096 "debug"
+	runExperiment 1 1.0 128 1000 1.0 4096 "debug" 1
 	exit 0
 elif [[ $1 == "incrementalIntervals" ]]; then
 	echo "running incremental intervals trial"
