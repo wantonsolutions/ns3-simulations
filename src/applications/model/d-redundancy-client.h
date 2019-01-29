@@ -26,7 +26,7 @@
 #include "ns3/traced-callback.h"
 
 
-#define REQUEST_BUFFER_SIZE 4096
+#define REQUEST_BUFFER_SIZE 16777216
 #define RTT_BUFFER_SIZE 36
 
 namespace ns3 {
@@ -196,6 +196,7 @@ private:
   uint8_t *m_data; //!< packet payload data
 
   uint32_t m_sent; //!< Counter for sent packets
+  uint32_t m_rec; //!< Counter for recevied packets
   Ptr<Socket> m_socket; //!< Socket
 
   //D-Sockets

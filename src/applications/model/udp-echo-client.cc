@@ -88,6 +88,7 @@ UdpEchoClient::UdpEchoClient ()
 {
   NS_LOG_FUNCTION (this);
   m_sent = 0;
+  m_rec = 0;
   m_socket = 0;
   m_sendEvent = EventId ();
   m_data = 0;
@@ -389,23 +390,52 @@ UdpEchoClient::Send (void)
 	      NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds () << "s client sent " << m_size << " bytes to " <<
 			   Inet6SocketAddress::ConvertFrom (m_peerAddress).GetIpv6 () << " port " << Inet6SocketAddress::ConvertFrom (m_peerAddress).GetPort ());
 	    }
+	  //printf("Sent %d , count %d\n",m_sent, m_count);
   if (m_sent < m_count) 
     {
-	  double rate = 0.99;
-          double current = (double) m_interval.GetSeconds();
-	  double nextRate = current * rate;
-	  double percentbound = nextRate * 0.1;
-	  double fMin = 0.0 - percentbound;
-	  double fMax = 0.0 + percentbound;
-	  double f = (double)rand() / RAND_MAX;
-	  double offset = fMin + f * (fMax - fMin);
-	  double ret = nextRate + offset;
 
-	  m_interval = Time(Seconds(ret));
-	  //printf("New Rate %f\n",ret);
+      m_interval = SetInterval();
       ScheduleTransmit (m_interval);
     }
 	
+}
+
+Time UdpEchoClient::SetInterval() {
+  Time interval;
+  switch (m_dist) {
+  case nodist:
+	  {
+		interval = m_interval;
+		break;
+	  }
+	  case incremental:
+	  {
+		double nextTime = incrementalDistributionNext((double) m_interval.GetSeconds(), 0.99);
+		//printf("Current Interval - %f, next Interval %f\n",(float)m_interval.GetSeconds(), nextTime);
+		interval = Time(Seconds(nextTime));
+		break;
+	  }
+	  case evenuniform:
+	  {
+		double nextTime = evenUniformDistributionNext(0, 0);
+		interval = Time(Seconds(nextTime));
+		break;
+	  }
+	  case exponential:
+	  {
+		double nextTime = (double) exponentailDistributionNext(0, 0);
+		interval = Time(Seconds(nextTime));
+		break;
+	  }
+	  case possion:
+	  {
+		double nextTime = (double) poissonDistributionNext(0, 0);
+		interval = Time(Seconds(nextTime));
+		break;
+	  }
+  }
+  return interval;
+
 }
 
 void
@@ -419,6 +449,8 @@ UdpEchoClient::HandleRead (Ptr<Socket> socket)
   while ((packet = socket->RecvFrom (from)))
     {
       if (packet->PeekPacketTag(idtag)) {
+
+	       m_rec++;
 	      //NS_LOG_INFO("Tag ID" << idtag.GetSenderTimestamp());
 	      //NS_LOG_INFO("timestamp index " << idtag.GetSenderTimestamp().GetNanoSeconds());
 	      //int requestIndex = int(idtag.GetSenderTimestamp().GetNanoSeconds()) % REQUEST_BUFFER_SIZE;
@@ -426,8 +458,14 @@ UdpEchoClient::HandleRead (Ptr<Socket> socket)
 	      //printf("index %d\n",requestIndex);
               Time difference = Simulator::Now() - m_requests[requestIndex];
 	      	//NS_LOG_WARN(difference.GetNanoSeconds());
-		       NS_LOG_WARN(difference.GetNanoSeconds() << "," <<
-				       Simulator::Now ().GetSeconds ()); 
+		//
+		//       NS_LOG_WARN(difference.GetNanoSeconds() << "," <<
+		//		       Simulator::Now ().GetSeconds ()); 
+		  
+	      NS_LOG_WARN(difference.GetNanoSeconds() << "," <<
+				       Simulator::Now ().GetSeconds () << "," <<
+				       m_sent << "," <<
+				       m_rec << ","); 
 	      
       }
 	      if (InetSocketAddress::IsMatchingType (from))
@@ -444,5 +482,34 @@ UdpEchoClient::HandleRead (Ptr<Socket> socket)
 		}
     }
 }
+
+  void UdpEchoClient::SetDistribution(enum distribution dist){
+	  m_dist = dist;
+  }
+
+  double UdpEchoClient::incrementalDistributionNext(double current, double rate) {
+	  double nextRate = current * rate;
+	  double percentbound = nextRate * 0.1;
+	  double fMin = 0.0 - percentbound;
+	  double fMax = 0.0 + percentbound;
+	  double f = (double)rand() / RAND_MAX;
+	  double offset = fMin + f * (fMax - fMin);
+	  double ret = nextRate + offset;
+	  //printf("New Rate %f\n",ret);
+	  return ret;
+	
+  }
+
+  int UdpEchoClient::evenUniformDistributionNext(int min, int max) {
+	  return 0;
+  }
+
+  int UdpEchoClient::exponentailDistributionNext(int min, int max) {
+	  return 0;
+  }
+
+  int UdpEchoClient::poissonDistributionNext(int min, int max) {
+	  return 0;
+  }
 
 } // Namespace ns3

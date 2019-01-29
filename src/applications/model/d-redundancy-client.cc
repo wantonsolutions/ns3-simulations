@@ -143,6 +143,7 @@ DRedundancyClient::DRedundancyClient ()
 {
   NS_LOG_FUNCTION (this);
   m_sent = 0;
+  m_rec = 0;
   m_socket = 0;
   m_parallel = 1;
   m_sendEvent = EventId();
@@ -478,6 +479,7 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 	      
 	      NS_LOG_FUNCTION("request Index: " << requestIndex);
 	      if (m_d_requests_received[requestIndex] == false) {
+		      m_rec++;
 		      m_d_requests_received[requestIndex] = true;
 		      NS_LOG_INFO("New Client Response " << requestIndex << " Received");
 		      Time now = Simulator::Now();
@@ -537,8 +539,10 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 		      //TODO Add bandwidth to the measure of each request.
 		       //NS_LOG_WARN(difference.GetNanoSeconds() << "-" << m_sent);
 		       //NS_LOG_WARN(difference.GetNanoSeconds()); 
-		       NS_LOG_WARN(difference.GetNanoSeconds() << "," <<
-				       Simulator::Now ().GetSeconds ()); 
+	      NS_LOG_WARN(difference.GetNanoSeconds() << "," <<
+				       Simulator::Now ().GetSeconds () << "," <<
+				       m_sent << "," <<
+				       m_rec << ","); 
 	      } else {
 		      NS_LOG_INFO("Old Client Response " << requestIndex << " Received");
 	      }

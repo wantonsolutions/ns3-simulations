@@ -25,8 +25,7 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/traced-callback.h"
 
-#define REQUEST_BUFFER_SIZE 4096
-
+#define REQUEST_BUFFER_SIZE 16777216
 namespace ns3 {
 
 class Socket;
@@ -132,6 +131,22 @@ public:
    */
   void SetFill (uint8_t *fill, uint32_t fillSize, uint32_t dataSize);
 
+// Custom types
+// Distribution refers to different distributions of interval delays, and of packet sizes
+  enum distribution
+  {
+	  nodist = 0,
+	  incremental = 1,
+	  evenuniform = 2,
+	  exponential = 3,
+	  possion = 4
+  };
+  void SetDistribution(enum distribution dist);
+  Time SetInterval();
+
+
+
+
 protected:
   virtual void DoDispose (void);
 
@@ -167,6 +182,7 @@ private:
   uint8_t *m_data; //!< packet payload data
 
   uint32_t m_sent; //!< Counter for sent packets
+  uint32_t m_rec; //!< Counter for recevied packets
   Ptr<Socket> m_socket; //!< Socket
   Address m_peerAddress; //!< Remote peer address
   uint16_t m_peerPort; //!< Remote peer port
@@ -177,6 +193,13 @@ private:
 
   /// Callbacks for tracing the packet Tx events
   TracedCallback<Ptr<const Packet> > m_txTrace;
+
+  distribution m_dist;
+  
+  double incrementalDistributionNext(double interval, double rate);
+  int evenUniformDistributionNext(int min, int max);
+  int exponentailDistributionNext(int min, int max);
+  int poissonDistributionNext(int min, int max);
 
 };
 

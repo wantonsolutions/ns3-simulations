@@ -62,18 +62,6 @@ void InstallRandomDRedClientTransmissions(float start, float stop, int clientInd
 	drc->SetAddresses(serverAddress,PARALLEL);
 	drc->SetDistribution(DRedundancyClient::incremental);
 	//drc->SetDistribution(DRedundancyClient::nodist);
-	
-	/*
-  for (float base = start;base < stop; base += 1.0) {
-        ApplicationContainer clientApps = dClient->Install (nodes.Get (clientIndex));
-	clientApps.Start( Seconds (base));
-	base += (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 5;
-	clientApps.Stop( Seconds (base));
-	base += (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 5;
-	Ptr<DRedundancyClient> drc = DynamicCast<DRedundancyClient>(clientApps.Get(0));
-	drc->SetFill("In the days of my youth I was told what it means to be a man-");
-	drc->SetAddresses(serverAddress,PARALLEL);
-  }*/
 }
 
 void SetupModularRandomDRedClient(float start, float stop, int serverPort, Address serverAddress[PARALLEL], NodeContainer nodes, int clientIndex, double interval, int packetsize, int maxpackets) {
@@ -90,13 +78,22 @@ void InstallEchoClientAttributes(UdpEchoClientHelper *echoClient, int maxpackets
 }
 
 void InstallRandomEchoClientTransmissions(float start, float stop, int clientIndex, UdpEchoClientHelper *echoClient, NodeContainer nodes) {
+	/*
   for (float base = start;base < stop; base += 1.0) {
         ApplicationContainer clientApps = echoClient->Install (nodes.Get (clientIndex));
 	clientApps.Start( Seconds (base));
 	base += (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 5;
 	clientApps.Stop( Seconds (base));
 	base += (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 5;
-  }
+  }*/
+        ApplicationContainer clientApps = echoClient->Install (nodes.Get (clientIndex));
+	clientApps.Start( Seconds (start));
+	clientApps.Stop( Seconds (stop));
+	Ptr<UdpEchoClient> ech = DynamicCast<UdpEchoClient>(clientApps.Get(0));
+	ech->SetDistribution(UdpEchoClient::incremental);
+
+
+  
 }
 
 void InstallUniformEchoClientTransmissions(float start, float stop, float gap, int clientIndex, UdpEchoClientHelper *echoClient, NodeContainer nodes) {
@@ -178,7 +175,8 @@ void SetupRandomCoverTraffic(float clientStart,float clientStop,float serverStar
 		  //Right now the servers only communicate over a single channel serverIPs[0] should be serverIPs[rand()%PARALLEL]
 		  switch (mode) {
 			case ECHO: {
-		  		SetupModularRandomEchoClient(clientStart,clientStop,serverport,secondAddrs[serverindex][0],nodes,i,interval,packetsize,NPackets);
+			        printf("setting up echo");
+		  		SetupModularRandomEchoClient(clientStart,clientStop,serverport,secondAddrs[serverindex][(rand()%PARALLEL)],nodes,i,interval,packetsize,NPackets);
 				break;
 		        }
 			case DRED: {
@@ -273,8 +271,6 @@ main (int argc, char *argv[])
 	*stream << ParallelString << ":" << PARALLEL <<"\n";
 
 
-	
-  return 0;
 
   //printf("Client - NPackets %d, baseInterval %f packetSize %d \n",ClientProtocolNPackets,ClientProtocolInterval,ClientProtocolPacketSize);
   //printf("Cover - NPackets %d, baseInterval %f packetSize %d \n",CoverNPackets,CoverInterval,CoverPacketSize);
@@ -465,7 +461,7 @@ main (int argc, char *argv[])
 		  serverApps = dServer.Install (nodes.Get (serverIndex));
 
 		  //map clients to servers 
-		  UdpEchoClientHelper dClient (serverIPS[0], serverport);
+		  UdpEchoClientHelper dClient (serverIPS[rand()%PARALLEL], serverport);
 		  dClient.SetAttribute ("MaxPackets", UintegerValue (ClientProtocolNPackets));
 		  dClient.SetAttribute ("Interval", TimeValue (Seconds (ClientProtocolInterval)));
 		  dClient.SetAttribute ("PacketSize", UintegerValue (ClientProtocolPacketSize));
