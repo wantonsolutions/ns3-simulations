@@ -34,11 +34,9 @@
 #include <iostream>
 #include <fstream>
 
-#define REQUEST_BUFFER_SIZE 4096
 
 namespace ns3 {
 	
-	Time requests[REQUEST_BUFFER_SIZE];
 
 
 NS_LOG_COMPONENT_DEFINE ("UdpEchoClientApplication");
@@ -360,7 +358,7 @@ UdpEchoClient::Send (void)
   //idtag.SetSenderTimestamp(Time(m_sent));
   //printf("Sending Packet %d\n",m_sent);
   p->AddPacketTag(idtag);
-  requests[m_sent % REQUEST_BUFFER_SIZE] = Simulator::Now();
+  m_requests[m_sent % REQUEST_BUFFER_SIZE] = Simulator::Now();
 
     // inserting values by using [] operator 
     //umap["GeeksforGeeks"] = 10; 
@@ -393,6 +391,18 @@ UdpEchoClient::Send (void)
 	    }
   if (m_sent < m_count) 
     {
+	  double rate = 0.99;
+          double current = (double) m_interval.GetSeconds();
+	  double nextRate = current * rate;
+	  double percentbound = nextRate * 0.1;
+	  double fMin = 0.0 - percentbound;
+	  double fMax = 0.0 + percentbound;
+	  double f = (double)rand() / RAND_MAX;
+	  double offset = fMin + f * (fMax - fMin);
+	  double ret = nextRate + offset;
+
+	  m_interval = Time(Seconds(ret));
+	  //printf("New Rate %f\n",ret);
       ScheduleTransmit (m_interval);
     }
 	
@@ -414,10 +424,10 @@ UdpEchoClient::HandleRead (Ptr<Socket> socket)
 	      //int requestIndex = int(idtag.GetSenderTimestamp().GetNanoSeconds()) % REQUEST_BUFFER_SIZE;
 	      int requestIndex = 5;
 	      //printf("index %d\n",requestIndex);
-              Time difference = Simulator::Now() - requests[requestIndex];
-	      if (m_peerPort == 11) {
-	      	NS_LOG_WARN(difference.GetNanoSeconds());
-	      }
+              Time difference = Simulator::Now() - m_requests[requestIndex];
+	      	//NS_LOG_WARN(difference.GetNanoSeconds());
+		       NS_LOG_WARN(difference.GetNanoSeconds() << "," <<
+				       Simulator::Now ().GetSeconds ()); 
 	      
       }
 	      if (InetSocketAddress::IsMatchingType (from))

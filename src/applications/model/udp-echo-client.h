@@ -25,6 +25,8 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/traced-callback.h"
 
+#define REQUEST_BUFFER_SIZE 4096
+
 namespace ns3 {
 
 class Socket;
@@ -169,6 +171,9 @@ private:
   Address m_peerAddress; //!< Remote peer address
   uint16_t m_peerPort; //!< Remote peer port
   EventId m_sendEvent; //!< Event to send the next packet
+
+
+  Time m_requests[REQUEST_BUFFER_SIZE];
 
   /// Callbacks for tracing the packet Tx events
   TracedCallback<Ptr<const Packet> > m_txTrace;

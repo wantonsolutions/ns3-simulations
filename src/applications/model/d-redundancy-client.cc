@@ -514,19 +514,21 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 		      diffSquare = diffSquare / bound;
 		      //printf("bound %d\n",bound);
 		      //Cheap square
+		      /*
 		      int64_t std = 0;
 		      for (int64_t i=0;(i*i) < diffSquare;i++) {
 			      std = i;
 		      }
-		      printf("min %ld, average %ld, std %ld level m_d_level %d \n",m_minRTT,average,std,m_d_level);
+		      */
+		      //printf("min %ld, average %ld, std %ld level m_d_level %d \n",m_minRTT,average,std,m_d_level);
 		      //Make a decision to pull back
 		      //if (average > (m_minRTT + std) && m_d_level > 1) {
 		      if (average > (m_minRTT + (m_minRTT/2)) && m_d_level > 1) {
-			      printf("Pulling Back from D level %d to %d",m_d_level,m_d_level - 1);
+			      //printf("Pulling Back from D level %d to %d",m_d_level,m_d_level - 1);
 			      m_d_level--;
 		      //} else if (average < (m_minRTT + std) && m_d_level < m_parallel) {
 		      } else if (average < (m_minRTT + (m_minRTT/2)) && m_d_level < m_parallel) {
-			      printf("Upgrading from from D level %d to %d",m_d_level,m_d_level + 1);
+			      //printf("Upgrading from from D level %d to %d",m_d_level,m_d_level + 1);
 			      m_d_level++;
 		      }
 		      //Peers connected on port 11 are the ones being monitered. The
@@ -534,7 +536,9 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 		      //request.
 		      //TODO Add bandwidth to the measure of each request.
 		       //NS_LOG_WARN(difference.GetNanoSeconds() << "-" << m_sent);
-		       NS_LOG_WARN(difference.GetNanoSeconds()); 
+		       //NS_LOG_WARN(difference.GetNanoSeconds()); 
+		       NS_LOG_WARN(difference.GetNanoSeconds() << "," <<
+				       Simulator::Now ().GetSeconds ()); 
 	      } else {
 		      NS_LOG_INFO("Old Client Response " << requestIndex << " Received");
 	      }

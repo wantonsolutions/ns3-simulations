@@ -116,10 +116,19 @@ void SetupRandomCoverTraffic(float clientStart,float clientStop,float serverStar
   for (int i = 0; i < numNodes; i++) {
           int serverindex;
 	  bool isClient = (i%2);
-	 if (! isClient) {
-		serverindex = ((i-1) + (distance)) % numNodes;
-	 } else {
-		serverindex = i;
+	 
+	 if (mode == ECHO) {
+		 if (! isClient) {
+			serverindex = i;
+		 } else {
+			serverindex = ((i-1) + (distance)) % numNodes;
+		 }
+	 } else if (mode == DRED) {
+		 if (! isClient) {
+			serverindex = ((i-1) + (distance)) % numNodes;
+		 } else {
+			serverindex = i;
+		 }
 	 }
 
 	 /*
@@ -196,6 +205,8 @@ main (int argc, char *argv[])
   float ClientProtocolInterval = 0.15;
   uint32_t ClientProtocolPacketSize = 256;
 
+  int mode = DRED;
+
   bool debug = false;
 
   //Command Line argument debugging code	  
@@ -208,8 +219,10 @@ main (int argc, char *argv[])
   cmd.AddValue("ClientProtocolPacketSize", "Interval at which a protocol client makes requests", ClientProtocolPacketSize);
 
   cmd.AddValue("Debug", "Print all log level info statements for all clients", debug);
+  cmd.AddValue("Mode", "The Composition of the clients ECHO=0 DRED=1 RAID=2", mode);
 
   cmd.Parse (argc, argv);
+  //mode = DRED;
 
   //printf("Client - NPackets %d, baseInterval %f packetSize %d \n",ClientProtocolNPackets,ClientProtocolInterval,ClientProtocolPacketSize);
   //printf("Cover - NPackets %d, baseInterval %f packetSize %d \n",CoverNPackets,CoverInterval,CoverPacketSize);
@@ -288,7 +301,7 @@ main (int argc, char *argv[])
       for (int n = 0; n < NODES; n++) {
           ndc_node2pod[i][n] = pointToPoint.Install(nc_node2pod[i][n]);
 	  //Ptr<DropTailQueue> queue = DynamicCast<DropTailQueue> (DynamicCast<PointToPointNetDevice> (ndc_node2pod[i][n].Get (0))->GetQueue ());
-          //queue->SetAttribute ("MaxPackets", UintegerValue (250));
+          //queue->SetAttribute ("MaxPackets", UintegerVbaps alue (250));
 	  
       }
   }
@@ -389,7 +402,6 @@ main (int argc, char *argv[])
 
   //determine which client mode is running
 
-  const int mode = DRED;
 
   ApplicationContainer clientApps;
   ApplicationContainer serverApps;
@@ -413,6 +425,7 @@ main (int argc, char *argv[])
 	}
 	case DRED:
 	  {
+			NS_LOG_INFO("Running in " << mode << " mode ");
 		  DRedundancyServerHelper dServer (serverport, serverIPS,PARALLEL);
 		  serverApps = dServer.Install (nodes.Get (serverIndex));
 		  
@@ -473,6 +486,7 @@ main (int argc, char *argv[])
   }
 
 	NS_LOG_INFO("Test Print");
+	NS_LOG_INFO("Running in " << mode << " mode ");
          
 	SetupRandomCoverTraffic(
 			clientStart, 
@@ -485,7 +499,7 @@ main (int argc, char *argv[])
 			coverserverport,
 			nodes, 
 			NODES, //total nodes
-			((K*K)/2), //distance
+			((K*K)/4), //distance
 
 			//&node2pods,
 			node2podsPtr,
