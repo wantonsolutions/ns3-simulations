@@ -68,7 +68,7 @@ elif [[ $1 == "incrementalIntervals" ]]; then
 elif [[ $1 == "DvUDP" ]]; then
 	echo "D redundancy vs UDP"
 	#runExperiment 1 1.0 128 500 1.0 4096 "dred" 0 data/backoff/echo3.dat
-	totalPackets=10000
+	totalPackets=100
 	RunAndMove 1 1.0 128 $totalPackets 1.0 4096 "echo" 0 "data/backoff/echo_$datetime.dat"
 	RunAndMove 1 1.0 128 $totalPackets 1.0 4096 "dred" 1 "data/backoff/dred_$datetime.dat"
 	ln -sf "echo_$datetime.dat" "data/backoff/echo_latest.dat"

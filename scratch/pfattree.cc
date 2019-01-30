@@ -119,36 +119,11 @@ void SetupRandomCoverTraffic(float clientStart,float clientStop,float serverStar
           int serverindex;
 	  bool isClient = (i%2);
 	 
-	 if (mode == ECHO) {
 		 if (! isClient) {
 			serverindex = i;
 		 } else {
 			serverindex = ((i-1) + (distance)) % numNodes;
 		 }
-	 } else if (mode == DRED) {
-		 if (! isClient) {
-			serverindex = ((i-1) + (distance)) % numNodes;
-		 } else {
-			serverindex = i;
-		 }
-	 }
-
-	 /*
-          if (isClient){
-		  continue;
-
-	  }*/
-/*
-	 NS_LOG_INFO("Addr - > " << secondAddrs[i][0].GetAddress(0,0));GetAddress(0,0)
-	 */
-	 /*
-	  for (int i = 0; i< PARALLEL; i++ ) {
-		  for (int  j = 0; j <NODES; j++ ) {
-			  NS_LOG_INFO("ADDRESS COPY -> (" <<i <<","<<j<<") " << node2podsPtr[i][j].GetAddress(0,0));
-		  }
-	  }*/
-
-
 
 	  if ( ! isClient ) {
 	  	  ApplicationContainer serverApps;  
@@ -181,7 +156,7 @@ void SetupRandomCoverTraffic(float clientStart,float clientStop,float serverStar
 				break;
 		        }
 			case DRED: {
-		  		SetupModularRandomDRedClient(clientStart,clientStop,serverport,secondAddrs[serverindex-1],nodes,i,interval,packetsize,NPackets);
+		  		SetupModularRandomDRedClient(clientStart,clientStop,serverport,secondAddrs[serverindex],nodes,i,interval,packetsize,NPackets);
 				break;
 		        }
 			case RAID: {
@@ -339,9 +314,9 @@ main (int argc, char *argv[])
   //Config::SetDefault ("ns3::QueueBase::MaxSize", QueueSizeValue(QueueSize("1p")));
 
   PointToPointHelper pointToPoint;
+  pointToPoint.SetQueue("ns3::DropTailQueue", "MaxSize", StringValue("3p"));
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue("1Mbps"));
   pointToPoint.SetChannelAttribute ("Delay", StringValue ("1.6ms"));
-  //pointToPoint.SetQueue("ns3::DropTailQueue", "MaxSize", StringValue("3p"));
   //pointToPoint.SetQueue("ns3::DropTailQueue", "MaxPackets", StringValue("3"));
   //pointToPoint.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(5));
   //pointToPoint.SetQueue ("ns3::DropTailQueue", "MaxSize", StringValue ("50p"));
