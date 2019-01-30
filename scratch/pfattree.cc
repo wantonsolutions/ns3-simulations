@@ -18,6 +18,7 @@
 #include "ns3/network-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/point-to-point-module.h"
+#include "ns3/csma-module.h"
 #include "ns3/applications-module.h"
 
 #include <string>
@@ -231,6 +232,8 @@ main (int argc, char *argv[])
   const char * Topology = "PFatTree";
   const char * ParallelString = "Parallel";
 
+  Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting",BooleanValue(true));
+  Config::SetDefault ("ns3::Ipv4GlobalRouting::RespondToInterfaceEvents", BooleanValue (true));
 
   //Command Line argument debugging code	  
   cmd.AddValue(CoverNPacketsString, "Number of packets for the cover to echo", CoverNPackets);
@@ -334,16 +337,21 @@ main (int argc, char *argv[])
 
   //Config::SetDefault ("ns3::QueueBase::MaxSize", StringValue ("100p"));
   //Config::SetDefault ("ns3::QueueBase::MaxSize", QueueSizeValue(QueueSize("1p")));
+
   PointToPointHelper pointToPoint;
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue("1Mbps"));
+  pointToPoint.SetChannelAttribute ("Delay", StringValue ("1.6ms"));
   //pointToPoint.SetQueue("ns3::DropTailQueue", "MaxSize", StringValue("3p"));
   //pointToPoint.SetQueue("ns3::DropTailQueue", "MaxPackets", StringValue("3"));
   //pointToPoint.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(5));
   //pointToPoint.SetQueue ("ns3::DropTailQueue", "MaxSize", StringValue ("50p"));
   //pointToPoint.SetDeviceAttribute ("DataRate", StringValue (datarate.str().c_str()));
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue("1Mbps"));
-  pointToPoint.SetChannelAttribute ("Delay", StringValue ("1.6ms"));
 
-
+  /*
+  CsmaHelper pointToPoint;
+  pointToPoint.SetChannelAttribute("DataRate", StringValue("1Mbps"));
+  pointToPoint.SetChannelAttribute ("Delay", TimeValue(NanoSeconds(6500)));
+  */
   //connect nodes to edges
   for (int i=0; i < PARALLEL; i++) {
       for (int n = 0; n < NODES; n++) {
@@ -376,12 +384,14 @@ main (int argc, char *argv[])
   for (int i=0;i<PARALLEL;i++) {
         std::stringstream n2pAddr;
         n2pAddr << "10." << 1 + i << ".1.0";
+  	//address.SetBase(n2pAddr.str().c_str(), "255.255.255.255");
   	address.SetBase(n2pAddr.str().c_str(), "255.255.255.255");
 	      for (int n=0;n<NODES;n++) {
 	      	node2pods[i][n] = address.Assign(ndc_node2pod[i][n]);
 	      }
         std::stringstream p2cAddr;
         p2cAddr << "10." << 1 + i << ".2.0";
+  	//address.SetBase(p2cAddr.str().c_str(), "255.255.255.255");
   	address.SetBase(p2cAddr.str().c_str(), "255.255.255.255");
 	      for (int c=0;c<CORE*PODS;c++) {
 		pods2core[i][c] = address.Assign(ndc_pod2core[i][c]);
@@ -508,7 +518,6 @@ main (int argc, char *argv[])
 	  }
   }
   //Config::SetDefault ("ns3::Ipv4GlobalRouting::EcmpMode", StringValue ("ECMP_RANDOM"));
-  Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting",BooleanValue(true));
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
   clientApps.Start (Seconds (clientStart));

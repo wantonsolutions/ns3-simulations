@@ -23,6 +23,7 @@ function runExperiment () {
 	--CoverInterval=$ci
 	--CoverPacketSize=$cps
 	--Mode=$mode
+	--Debug=0
 	" 2>$filename 
 }
 
