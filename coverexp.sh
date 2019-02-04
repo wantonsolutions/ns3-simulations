@@ -11,8 +11,10 @@ function runExperiment () {
 	cnp=$4
 	ci=$5
 	cps=$6
-	filename=exp_$7_$1-$2-$3-$4-$5-$6.dat
+
 	mode=$8
+	incRate=$9
+	filename=exp_$7_$1-$2-$3-$4-$5-$6-$8-$9.dat
 
 ./waf --run \
 	"scratch/pfattree
@@ -24,6 +26,8 @@ function runExperiment () {
 	--CoverPacketSize=$cps
 	--Mode=$mode
 	--Debug=0
+	--IntervalRatio=$incRate
+	--ManifestName=$filename-manifest.config
 	" 2>$filename 
 }
 
@@ -47,9 +51,9 @@ function IncrementalIntervals() {
 
 function RunAndMove() {
 	echo "running and moving"
-	runExperiment $1 $2 $3 $4 $5 $6 $7 $8
+	runExperiment $1 $2 $3 $4 $5 $6 $7 $8 0.99
 	finalLoc=$9
-	filename=exp_$7_$1-$2-$3-$4-$5-$6.dat
+	filename=exp_$7_$1-$2-$3-$4-$5-$6-$8-0.99.dat
 	mv $filename $finalLoc
 }
 
@@ -68,14 +72,27 @@ elif [[ $1 == "incrementalIntervals" ]]; then
 elif [[ $1 == "DvUDP" ]]; then
 	echo "D redundancy vs UDP"
 	#runExperiment 1 1.0 128 500 1.0 4096 "dred" 0 data/backoff/echo3.dat
-	totalPackets=100
-	RunAndMove 1 1.0 128 $totalPackets 1.0 4096 "echo" 0 "data/backoff/echo_$datetime.dat"
-	RunAndMove 1 1.0 128 $totalPackets 1.0 4096 "dred" 1 "data/backoff/dred_$datetime.dat"
+	totalPackets=1000
+	RunAndMove 0 1.0 128 $totalPackets 1.0 4096 "echo" 0 "data/backoff/echo_$datetime.dat"
+	RunAndMove 0 1.0 128 $totalPackets 1.0 4096 "dred" 1 "data/backoff/dred_$datetime.dat"
 	ln -sf "echo_$datetime.dat" "data/backoff/echo_latest.dat"
 	ln -sf "dred_$datetime.dat" "data/backoff/dred_latest.dat"
 
 	cd plot/randomBackoff
 	./plotscript.sh
+	exit 0
+elif [[ $1 == "DvUDP-I" ]]; then
+	echo "D redundancy vs UDP"
+	#runExperiment 1 1.0 128 500 1.0 4096 "dred" 0 data/backoff/echo3.dat
+	totalPackets=1000
+	for i in `seq  0.995 -0.003 0.99`; do
+		runExperiment 1 1.0 128 $totalPackets 1.0 4096 "dred" 1 $i &
+		sleep 3
+		#runExperiment 1 1.0 128 $totalPackets 1.0 4096 "echo" 0 $i &
+		sleep 3
+		break
+	done
+	#mv *.dat data/variableRate/
 	exit 0
 	
 fi

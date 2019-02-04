@@ -158,6 +158,7 @@ public:
   };
   void SetDistribution(enum distribution dist);
   Time SetInterval();
+  void SetIntervalRatio(double ratio);
 
 
 protected:
@@ -190,6 +191,7 @@ private:
 
   uint32_t m_count; //!< Maximum number of packets the application will send
   Time m_interval; //!< Packet inter-send time
+  double m_intervalRatio; // The rate at which sending intervals increase, given incremental
   uint32_t m_size; //!< Size of the sent packet
 
   uint32_t m_dataSize; //!< packet payload size (must be equal to m_size)
@@ -197,6 +199,7 @@ private:
 
   uint32_t m_sent; //!< Counter for sent packets
   uint32_t m_rec; //!< Counter for recevied packets
+
   Ptr<Socket> m_socket; //!< Socket
 
   //D-Sockets

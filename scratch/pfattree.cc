@@ -34,7 +34,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("VarClients");
 
 
-const int K = 4;
+const int K = 8;
 const int PARALLEL = 3;
 
 const int PODS = K;
@@ -45,6 +45,44 @@ const int PCORE = PARALLEL * CORE;
 const int NODE = K/2 ;
 const int NODES = PODS * PERPOD * NODE;
 
+
+//GLOBALS
+  uint32_t CoverNPackets = 100;
+  float CoverInterval = 0.1;
+  uint32_t CoverPacketSize = 128;
+
+  uint32_t ClientProtocolNPackets = 200;
+  float ClientProtocolInterval = 0.15;
+  uint32_t ClientProtocolPacketSize = 256;
+
+  double IntervalRatio = .99;
+
+  int mode = DRED;
+
+  bool debug = false;
+
+  std::string ManifestName = "manifest.config";
+
+  const char * CoverNPacketsString = "CoverNPackets";
+  const char * CoverIntervalString = "CoverInterval";
+  const char * CoverPacketSizeString = "CoverPacketSize";
+
+  const char * ClientProtocolNPacketsString = "ClientProtocolNPackets";
+  const char * ClientProtocolIntervalString = "ClientProtocolInterval";
+  const char * ClientProtocolPacketSizeString = "ClientProtocolPacketSize";
+
+  const char * IntervalRatioString = "IntervalRatio";
+
+  const char * ManifestNameString = "ManifestName";
+
+  const char * DebugString = "Debug";
+  const char * ModeString = "Mode";
+
+  const char * KString = "K";
+  const char * TopologyString = "Topology";
+  const char * Topology = "PFatTree";
+  const char * ParallelString = "Parallel";
+//\Globals
 
 //-------------------------------------------------DRedundancy Client--------------------------------------
 void InstallDRedClientAttributes(DRedundancyClientHelper *dClient, int maxpackets, double interval, int packetsize) {
@@ -62,6 +100,7 @@ void InstallRandomDRedClientTransmissions(float start, float stop, int clientInd
 	//drc->SetFill("In the days of my youth I was told what it means to be a man-");
 	drc->SetAddresses(serverAddress,PARALLEL);
 	drc->SetDistribution(DRedundancyClient::incremental);
+	drc->SetIntervalRatio(IntervalRatio);
 	//drc->SetDistribution(DRedundancyClient::nodist);
 }
 
@@ -92,6 +131,7 @@ void InstallRandomEchoClientTransmissions(float start, float stop, int clientInd
 	clientApps.Stop( Seconds (stop));
 	Ptr<UdpEchoClient> ech = DynamicCast<UdpEchoClient>(clientApps.Get(0));
 	ech->SetDistribution(UdpEchoClient::incremental);
+	ech->SetIntervalRatio(IntervalRatio);
 
 
   
@@ -175,37 +215,6 @@ main (int argc, char *argv[])
   CommandLine cmd;
 
   //Default vlaues for command line arguments
-  uint32_t CoverNPackets = 100;
-  float CoverInterval = 0.1;
-  uint32_t CoverPacketSize = 128;
-
-  uint32_t ClientProtocolNPackets = 200;
-  float ClientProtocolInterval = 0.15;
-  uint32_t ClientProtocolPacketSize = 256;
-
-  int mode = DRED;
-
-  bool debug = false;
-
-  char * ManifestName = (char*)"manifest.config";
-
-  const char * CoverNPacketsString = "CoverNPackets";
-  const char * CoverIntervalString = "CoverInterval";
-  const char * CoverPacketSizeString = "CoverPacketSize";
-
-  const char * ClientProtocolNPacketsString = "ClientProtocolNPackets";
-  const char * ClientProtocolIntervalString = "ClientProtocolInterval";
-  const char * ClientProtocolPacketSizeString = "ClientProtocolPacketSize";
-
-  const char * ManifestNameString = "ManifestName";
-
-  const char * DebugString = "Debug";
-  const char * ModeString = "Mode";
-
-  const char * KString = "K";
-  const char * TopologyString = "Topology";
-  const char * Topology = "PFatTree";
-  const char * ParallelString = "Parallel";
 
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting",BooleanValue(true));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RespondToInterfaceEvents", BooleanValue (true));
@@ -219,6 +228,8 @@ main (int argc, char *argv[])
   cmd.AddValue(ClientProtocolIntervalString, "Interval at which a protocol client makes requests", ClientProtocolInterval);
   cmd.AddValue(ClientProtocolPacketSizeString, "Interval at which a protocol client makes requests", ClientProtocolPacketSize);
 
+  cmd.AddValue(IntervalRatioString, "Ratio at which the ratio of client requests increases", IntervalRatio);
+
   cmd.AddValue(ManifestNameString, "Then name of the ouput manifest (includes all configurations)", ManifestName);
 
   cmd.AddValue(DebugString, "Print all log level info statements for all clients", debug);
@@ -228,7 +239,7 @@ main (int argc, char *argv[])
   //mode = DRED;
   //
   //Open a file to write out manifest
-  std::string manifestFilename = "manifist.cofig";
+  std::string manifestFilename = ManifestName;
   std::ios_base::openmode openmode = std::ios_base::out | std::ios_base::trunc;
   //ofstream->open (manifestFilename.c_str (), openmode);
   OutputStreamWrapper StreamWrapper = OutputStreamWrapper(manifestFilename, openmode);
@@ -241,6 +252,7 @@ main (int argc, char *argv[])
 	*stream << ClientProtocolNPacketsString<< ":" << ClientProtocolNPackets <<"\n";
 	*stream << ClientProtocolIntervalString << ":" << ClientProtocolInterval <<"\n";
 	*stream << ClientProtocolPacketSizeString << ":" << ClientProtocolPacketSize <<"\n";
+	*stream << IntervalRatioString << ":" << IntervalRatio <<"\n";
 	*stream << ManifestNameString << ":" << ManifestName <<"\n";
 	*stream << DebugString << ":" << debug <<"\n";
 	*stream << ModeString << ":" << mode <<"\n";
@@ -412,7 +424,6 @@ main (int argc, char *argv[])
   float clientStop = 1000.0;
 
   float duration = clientStop;
-  float serverStop = duration;
 
 
   Address IPS[NODES][PARALLEL];
@@ -471,7 +482,9 @@ main (int argc, char *argv[])
 		  clientApps = dClient.Install (nodes.Get (clientIndex));
 		  Ptr<DRedundancyClient> drc = DynamicCast<DRedundancyClient>(clientApps.Get(0));
 		  //drc->SetFill("In the days of my youth I was told what it means to be a man-");
+		  drc->SetDistribution(DRedundancyClient::incremental);
 		  drc->SetAddresses(serverIPS,PARALLEL);
+		  drc->SetIntervalRatio(IntervalRatio);
 		  break;
 	}
 	case RAID:
@@ -522,9 +535,9 @@ main (int argc, char *argv[])
          
 	SetupRandomCoverTraffic(
 			clientStart, 
-			clientStop, 
+			duration, 
 			serverStart,
-			serverStop,
+			duration,
 			CoverNPackets,
 			CoverInterval,
 			CoverPacketSize,

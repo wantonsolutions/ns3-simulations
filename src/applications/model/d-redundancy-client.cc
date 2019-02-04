@@ -146,6 +146,7 @@ DRedundancyClient::DRedundancyClient ()
   m_rec = 0;
   m_socket = 0;
   m_parallel = 1;
+  m_intervalRatio = 0.01;
   m_sendEvent = EventId();
   m_data = 0;
   m_dataSize = 0;
@@ -419,6 +420,10 @@ DRedundancyClient::Send (void)
 	
 }
 
+void DRedundancyClient::SetIntervalRatio(double ratio) {
+	m_intervalRatio = ratio;
+}
+
 Time DRedundancyClient::SetInterval() {
   Time interval;
   switch (m_dist) {
@@ -429,7 +434,7 @@ Time DRedundancyClient::SetInterval() {
 	  }
 	  case incremental:
 	  {
-		double nextTime = incrementalDistributionNext((double) m_interval.GetSeconds(), 0.99);
+		double nextTime = incrementalDistributionNext((double) m_interval.GetSeconds(), m_intervalRatio);
 		//printf("Current Interval - %f, next Interval %f\n",(float)m_interval.GetSeconds(), nextTime);
 		interval = Time(Seconds(nextTime));
 		break;
@@ -525,11 +530,11 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 		      //printf("min %ld, average %ld, std %ld level m_d_level %d \n",m_minRTT,average,std,m_d_level);
 		      //Make a decision to pull back
 		      //if (average > (m_minRTT + std) && m_d_level > 1) {
-		      if (average > (m_minRTT + (m_minRTT/2)) && m_d_level > 1) {
+		      if (average > (m_minRTT + (m_minRTT/10)) && m_d_level > 1) {
 			      //printf("Pulling Back from D level %d to %d",m_d_level,m_d_level - 1);
 			      m_d_level--;
 		      //} else if (average < (m_minRTT + std) && m_d_level < m_parallel) {
-		      } else if (average < (m_minRTT + (m_minRTT/2)) && m_d_level < m_parallel) {
+		      } else if (average < (m_minRTT + (m_minRTT/10)) && m_d_level < m_parallel) {
 			      //printf("Upgrading from from D level %d to %d",m_d_level,m_d_level + 1);
 			      m_d_level++;
 		      }
@@ -542,7 +547,10 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 	      NS_LOG_WARN(difference.GetNanoSeconds() << "," <<
 				       Simulator::Now ().GetSeconds () << "," <<
 				       m_sent << "," <<
-				       m_rec << ","); 
+				       m_rec << "," <<
+				       requestIndex << "," <<
+				       (int) m_d_level << ","
+				       ); 
 	      } else {
 		      NS_LOG_INFO("Old Client Response " << requestIndex << " Received");
 	      }

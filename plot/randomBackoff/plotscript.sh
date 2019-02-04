@@ -11,7 +11,7 @@ datadir=../../data/backoff
 
 file1="echo_latest.dat"
 file2="dred_latest.dat"
-python latency.py $datadir/$file1 $datadir/$file2
+#python latency.py $datadir/$file1 $datadir/$file2
 python cdf.py $datadir/$file1 $datadir/$file2
 
 

@@ -90,6 +90,7 @@ UdpEchoClient::UdpEchoClient ()
   m_sent = 0;
   m_rec = 0;
   m_socket = 0;
+  m_intervalRatio = 0.01;
   m_sendEvent = EventId ();
   m_data = 0;
   m_dataSize = 0;
@@ -358,6 +359,8 @@ UdpEchoClient::Send (void)
   Ipv4PacketInfoTag idtag;
   //idtag.SetSenderTimestamp(Time(m_sent));
   //printf("Sending Packet %d\n",m_sent);
+  uint32_t send_index = m_sent % REQUEST_BUFFER_SIZE;
+  idtag.SetRecvIf(send_index);
   p->AddPacketTag(idtag);
   m_requests[m_sent % REQUEST_BUFFER_SIZE] = Simulator::Now();
 
@@ -398,6 +401,10 @@ UdpEchoClient::Send (void)
       ScheduleTransmit (m_interval);
     }
 	
+}
+
+void UdpEchoClient::SetIntervalRatio(double ratio) {
+	m_intervalRatio = ratio;
 }
 
 Time UdpEchoClient::SetInterval() {
@@ -454,8 +461,7 @@ UdpEchoClient::HandleRead (Ptr<Socket> socket)
 	      //NS_LOG_INFO("Tag ID" << idtag.GetSenderTimestamp());
 	      //NS_LOG_INFO("timestamp index " << idtag.GetSenderTimestamp().GetNanoSeconds());
 	      //int requestIndex = int(idtag.GetSenderTimestamp().GetNanoSeconds()) % REQUEST_BUFFER_SIZE;
-	      int requestIndex = 5;
-	      //printf("index %d\n",requestIndex);
+	      int requestIndex = int(idtag.GetRecvIf()) % REQUEST_BUFFER_SIZE;
               Time difference = Simulator::Now() - m_requests[requestIndex];
 	      	//NS_LOG_WARN(difference.GetNanoSeconds());
 		//
@@ -465,7 +471,10 @@ UdpEchoClient::HandleRead (Ptr<Socket> socket)
 	      NS_LOG_WARN(difference.GetNanoSeconds() << "," <<
 				       Simulator::Now ().GetSeconds () << "," <<
 				       m_sent << "," <<
-				       m_rec << ","); 
+				       m_rec << "," <<
+				       requestIndex << "," <<
+				       0 << ","
+				       ); 
 	      
       }
 	      if (InetSocketAddress::IsMatchingType (from))
