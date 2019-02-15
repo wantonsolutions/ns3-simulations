@@ -33,7 +33,7 @@ def build(bld):
         'model/file-aggregator.cc',
         'model/gnuplot-aggregator.cc',
         'model/get-wildcard-matches.cc', 
-        ]
+    ]
 
     module_test = bld.create_ns3_module_test_library('stats')
     module_test.source = [

@@ -396,7 +396,6 @@ UdpEchoClient::Send (void)
 	  //printf("Sent %d , count %d\n",m_sent, m_count);
   if (m_sent < m_count) 
     {
-
       m_interval = SetInterval();
       ScheduleTransmit (m_interval);
     }

@@ -20,6 +20,8 @@
 #include "ns3/point-to-point-module.h"
 #include "ns3/csma-module.h"
 #include "ns3/applications-module.h"
+#include "ns3/multichannel-probe-module.h"
+#include "ns3/testmodule-module.h"
 
 #include <string>
 #include <fstream>
@@ -34,7 +36,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("VarClients");
 
 
-const int K = 8;
+const int K = 4;
 const int PARALLEL = 3;
 
 const int PODS = K;
@@ -62,6 +64,7 @@ const int NODES = PODS * PERPOD * NODE;
   bool debug = false;
 
   std::string ManifestName = "manifest.config";
+  std::string ProbeName = "default.csv";
 
   const char * CoverNPacketsString = "CoverNPackets";
   const char * CoverIntervalString = "CoverInterval";
@@ -74,6 +77,7 @@ const int NODES = PODS * PERPOD * NODE;
   const char * IntervalRatioString = "IntervalRatio";
 
   const char * ManifestNameString = "ManifestName";
+  const char * ProbeNameString = "ProbeName";
 
   const char * DebugString = "Debug";
   const char * ModeString = "Mode";
@@ -231,6 +235,7 @@ main (int argc, char *argv[])
   cmd.AddValue(IntervalRatioString, "Ratio at which the ratio of client requests increases", IntervalRatio);
 
   cmd.AddValue(ManifestNameString, "Then name of the ouput manifest (includes all configurations)", ManifestName);
+  cmd.AddValue(ProbeNameString, "Then name of the output probe CSV", ProbeName);
 
   cmd.AddValue(DebugString, "Print all log level info statements for all clients", debug);
   cmd.AddValue(ModeString, "The Composition of the clients ECHO=0 DRED=1 RAID=2", mode);
@@ -384,6 +389,7 @@ main (int argc, char *argv[])
 		pods2core[i][c] = address.Assign(ndc_pod2core[i][c]);
 	      }
   }
+
   /*
 	std::stringstream n2pAddr;
 	n2pAddr << "10.0.0.0";
@@ -394,6 +400,11 @@ main (int argc, char *argv[])
 	      }
 	      for (int c=0;c<CORE*PODS;c++) {
 		pods2core[i][c] = address.Assign(ndc_pod2core[i][c]);
+  p2p.EnablePcapAll ("multichannel-probe-test");
+
+  Ptr<MultichannelProbe> mcp = CreateObject<MultichannelProbe> ("multichannel-probe-test.csv");
+  mcp->SetAttribute ("Interval", StringValue("10ms"));
+  mcp->AttachAll ();
 	      }
   }*/
   /*
@@ -410,9 +421,6 @@ main (int argc, char *argv[])
 				//Calculate Node
 */
 
-
-
-
   int serverport = 9;
   int clientIndex = 0;
   int serverIndex = 11;
@@ -421,7 +429,7 @@ main (int argc, char *argv[])
   int coverserverport = 10;
   float serverStart = 1.0;
   float clientStart = 2.0;
-  float clientStop = 1000.0;
+  float clientStop = 100.0;
 
   float duration = clientStop;
 
@@ -445,7 +453,11 @@ main (int argc, char *argv[])
   }
 
   //determine which client mode is running
+  pointToPoint.EnablePcapAll (ProbeName);
 
+  Ptr<MultichannelProbe> mcp = CreateObject<MultichannelProbe> (ProbeName);
+  mcp->SetAttribute ("Interval", StringValue("1000ms"));
+  mcp->AttachAll ();
 
   ApplicationContainer clientApps;
   ApplicationContainer serverApps;
@@ -469,7 +481,7 @@ main (int argc, char *argv[])
 	}
 	case DRED:
 	  {
-			NS_LOG_INFO("Running in " << mode << " mode ");
+		  NS_LOG_INFO("Running in " << mode << " mode ");
 		  DRedundancyServerHelper dServer (serverport, serverIPS,PARALLEL);
 		  serverApps = dServer.Install (nodes.Get (serverIndex));
 		  

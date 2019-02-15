@@ -14,7 +14,7 @@ function runExperiment () {
 
 	mode=$8
 	incRate=$9
-	filename=exp_$7_$1-$2-$3-$4-$5-$6-$8-$9.dat
+	filename=exp_$7_$1-$2-$3-$4-$5-$6-$8-$9
 
 ./waf --run \
 	"scratch/pfattree
@@ -27,8 +27,9 @@ function runExperiment () {
 	--Mode=$mode
 	--Debug=0
 	--IntervalRatio=$incRate
-	--ManifestName=$filename-manifest.config
-	" 2>$filename 
+    --ProbeName=$filename.csv
+	--ManifestName=$filename.config
+	" 2>$filename.dat
 }
 
 
@@ -39,7 +40,7 @@ function IncrementalIntervals() {
 	ClientProtocolNPackets=4096
 	ClientProtocolInterval=0.01
 	ClientProtocolPacketSize=1024
-	CoverNPackets=1000
+	CoverNPackets=1000000
 	CoverInterval=$intervals
 	CoverPacketSize=1024
 	let 'exp=0'
@@ -51,9 +52,9 @@ function IncrementalIntervals() {
 
 function RunAndMove() {
 	echo "running and moving"
-	runExperiment $1 $2 $3 $4 $5 $6 $7 $8 0.99
+	runExperiment $1 $2 $3 $4 $5 $6 $7 $8 ${10}
 	finalLoc=$9
-	filename=exp_$7_$1-$2-$3-$4-$5-$6-$8-0.99.dat
+	filename=exp_$7_$1-$2-$3-$4-$5-$6-$8-${10}.dat
 	mv $filename $finalLoc
 }
 
@@ -63,7 +64,7 @@ echo $1
 
 if [[ $1 == "debug" ]];then
 	echo "debugging"
-	runExperiment 1 1.0 128 1000 1.0 4096 "debug" 1
+	runExperiment 1 1.0 128 1000 1.0 4096 "debug" 1 0.999
 	exit 0
 elif [[ $1 == "incrementalIntervals" ]]; then
 	echo "running incremental intervals trial"
@@ -72,25 +73,24 @@ elif [[ $1 == "incrementalIntervals" ]]; then
 elif [[ $1 == "DvUDP" ]]; then
 	echo "D redundancy vs UDP"
 	#runExperiment 1 1.0 128 500 1.0 4096 "dred" 0 data/backoff/echo3.dat
-	totalPackets=1000
-	RunAndMove 0 1.0 128 $totalPackets 1.0 4096 "echo" 0 "data/backoff/echo_$datetime.dat"
-	RunAndMove 0 1.0 128 $totalPackets 1.0 4096 "dred" 1 "data/backoff/dred_$datetime.dat"
+	totalPackets=1000000
+	RunAndMove 0 1.0 128 $totalPackets 1.0 4096 "echo" 0 "data/backoff/echo_$datetime.dat" 0.9999
+	RunAndMove 0 1.0 128 $totalPackets 1.0 4096 "dred" 1 "data/backoff/dred_$datetime.dat" 0.9999
 	ln -sf "echo_$datetime.dat" "data/backoff/echo_latest.dat"
 	ln -sf "dred_$datetime.dat" "data/backoff/dred_latest.dat"
 
-	cd plot/randomBackoff
+	cd plot/variableRate
 	./plotscript.sh
 	exit 0
 elif [[ $1 == "DvUDP-I" ]]; then
 	echo "D redundancy vs UDP"
 	#runExperiment 1 1.0 128 500 1.0 4096 "dred" 0 data/backoff/echo3.dat
 	totalPackets=1000
-	for i in `seq  0.995 -0.003 0.99`; do
+	for i in `seq  0.999 -0.002 0.99`; do
 		runExperiment 1 1.0 128 $totalPackets 1.0 4096 "dred" 1 $i &
 		sleep 3
-		#runExperiment 1 1.0 128 $totalPackets 1.0 4096 "echo" 0 $i &
+		runExperiment 1 1.0 128 $totalPackets 1.0 4096 "echo" 0 $i &
 		sleep 3
-		break
 	done
 	#mv *.dat data/variableRate/
 	exit 0
