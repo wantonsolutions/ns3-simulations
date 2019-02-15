@@ -1,0 +1,26 @@
+## -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
+
+def build(bld):
+    #module = bld.create_ns3_module('multichannel-probe',['nstime','simulator','packet','uinteger'])
+    #module = bld.create_ns3_module('multichannel-probe',['traffic-control','network'])
+    #module = bld.create_ns3_module('multichannel-probe',['traffic-control'])
+    #module = bld.create_ns3_module('multichannel-probe',['core','network','traffic-control'])
+    module = bld.create_ns3_module('multichannel-probe')
+    module.source = [
+        'model/multichannel-probe.cc',
+        ]
+
+    module_test = bld.create_ns3_module_test_library('multichannel-probe')
+    module_test.source = [
+        ]
+
+    headers = bld(features='ns3header')
+    headers.module = 'multichannel-probe'
+    headers.source = [
+        'model/multichannel-probe.h',
+        ]
+
+    if (bld.env['ENABLE_EXAMPLES']):
+        bld.recurse('examples')
+
+    #bld.ns3_python_bindings()
