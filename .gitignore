@@ -34,4 +34,9 @@ plot/randomCoverIncremental/linearPtreeExp
 plot/randomCoverIncremental/*.png
 plot/randomCoverIncremental/randomcover
 
+*.pcap
+*.csv
+*.dat
+*.png
+
 
