@@ -72,6 +72,7 @@ public:
   bool Attach (NetDeviceContainer devs, const std::string &identifier = "");
   bool Attach (Ptr<NetDevice> dev, const std::string &identifier = "");
   bool Attach (Ptr<QueueDisc> qd, const std::string &identifier = "");
+  bool Attach (Ptr<Queue<Packet>> queue, const std::string &identifier = "");
   bool Attach (Ptr<Queue<QueueItem>> queue, const std::string &identifier = "");
   bool Attach (Ptr<Queue<QueueDiscItem>> queue, const std::string &identifier = "");
 

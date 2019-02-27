@@ -555,14 +555,6 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 		      NS_LOG_INFO("Old Client Response " << requestIndex << " Received");
 	      }
 
-
-	      
-	      
-
-	       /*
-	      if (m_peerPort == 11) {
-		NS_LOG_INFO(difference.GetNanoSeconds());
-	      }*/
 	      VerboseReceiveLogging(from,packet);
       }
     }

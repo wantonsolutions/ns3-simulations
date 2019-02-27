@@ -619,6 +619,13 @@ MultichannelProbe::Attach (Ptr<Queue<QueueItem>> queue, const std::string &ident
 }
 
 bool 
+MultichannelProbe::Attach (Ptr<Queue<Packet>> queue, const std::string &identifier)
+{
+    printf("CAUGHT!");
+    return true;
+}
+
+bool 
 MultichannelProbe::Attach (Ptr<Queue<QueueDiscItem>> queue, const std::string &identifier)
 {
   NS_LOG_FUNCTION (this << queue << identifier);
@@ -646,17 +653,17 @@ MultichannelProbe::Attach (Ptr<Queue<QueueDiscItem>> queue, const std::string &i
 
   ps.identifier = identifier;
 
-  if (queue->TraceConnect("Enqueue", std::to_string(m_probes.size()), MakeCallback(&MultichannelProbe::PacketTxEnqueueTraceSink, this)))
+  if (queue->TraceConnect("Enqueue", std::to_string(m_probes.size()), MakeCallback(&MultichannelProbe::QueueDiscItemTxEnqueueTraceSink, this)))
     {
       res = true;
     }
 
-  if (queue->TraceConnect("Drop", std::to_string(m_probes.size()), MakeCallback(&MultichannelProbe::PacketDropTraceSink, this)))
+  if (queue->TraceConnect("Drop", std::to_string(m_probes.size()), MakeCallback(&MultichannelProbe::QueueDiscItemDropTraceSink, this)))
     {
       res = true;
     }
 
-  if (queue->TraceConnect("Dequeue", std::to_string(m_probes.size()), MakeCallback(&MultichannelProbe::PacketRxDequeueTraceSink, this)))
+  if (queue->TraceConnect("Dequeue", std::to_string(m_probes.size()), MakeCallback(&MultichannelProbe::QueueDiscItemRxDequeueTraceSink, this)))
     {
       res = true;
     }

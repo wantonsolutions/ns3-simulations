@@ -416,7 +416,7 @@ Time UdpEchoClient::SetInterval() {
 	  }
 	  case incremental:
 	  {
-		double nextTime = incrementalDistributionNext((double) m_interval.GetSeconds(), 0.99);
+		double nextTime = incrementalDistributionNext((double) m_interval.GetSeconds(), m_intervalRatio);
 		//printf("Current Interval - %f, next Interval %f\n",(float)m_interval.GetSeconds(), nextTime);
 		interval = Time(Seconds(nextTime));
 		break;
