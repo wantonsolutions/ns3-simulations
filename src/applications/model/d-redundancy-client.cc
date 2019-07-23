@@ -16,6 +16,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include "ns3/log.h"
+#include "ns3/ipv4.h"
+#include "ns3/network-module.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/ipv6-address.h"
 #include "ns3/nstime.h"
@@ -31,6 +33,8 @@
 
 //#include "ns3/lte-pdcp-tag.h"
 #include "ns3/ipv4-packet-info-tag.h"
+#include "ns3/parallel-protocols.h"
+#include "ns3/d-red-tag.h"
 //#include "ns3/lte-pdcp-tag.h"
 #include <iostream>
 #include <fstream>
@@ -211,8 +215,9 @@ DRedundancyClient::StartApplication (void)
 	NS_LOG_INFO("Starting application setting up socket " << i);
 	//printf("Random Starting Channel %d\n",rand()%m_parallel);
 	Ptr<Node> n = GetNode();
-	Ptr<NetDevice> dev = n->GetDevice(i);
-	m_sockets[i] = ConnectSocket(m_peerAddresses[i],m_peerPort,dev);
+	Ptr<NetDevice> dev = n->GetDevice(i+1);
+    NS_LOG_INFO("NUM DEVS " << n->GetNDevices());
+	m_sockets[i] = ConnectSocket(m_peerAddresses[i],m_peerPort+i,dev);
 	m_sockets[i]->SetRecvCallback (MakeCallback (&DRedundancyClient::HandleRead, this));
 	m_sockets[i]->SetAllowBroadcast (true);
   }
@@ -389,26 +394,67 @@ DRedundancyClient::Send (void)
   //
   
   //PdcpTag idtag;
-  Ipv4PacketInfoTag idtag;
-  uint32_t send_index = m_sent % REQUEST_BUFFER_SIZE;
-  idtag.SetRecvIf(send_index);
-  NS_LOG_INFO("request Index: " <<idtag.GetRecvIf());
-  //printf("Sending Packet %d\n",m_sent);
-  p->AddPacketTag(idtag);
+  //Ipv4PacketInfoTag idtag;
+  //uint32_t send_index = m_sent % REQUEST_BUFFER_SIZE;
+  //idtag.SetRecvIf(send_index);
+  //NS_LOG_INFO("request Index: " <<idtag.GetRecvIf());
+
+  DRedTag dtag;
+  uint16_t send_index = m_sent % REQUEST_BUFFER_SIZE;
+  uint32_t destinations[NUM_CHANNELS];
+  uint16_t ports[NUM_CHANNELS];
+  dtag.SetSeqNum(send_index);
+  dtag.SetNumSources(uint8_t(m_d_level));
+  dtag.SetEtc(0);
+
+    Ptr <Node> PtrNode = this->GetNode();
+        int setchannels = 0;
+        for (int i=0;i<m_parallel;i++) {
+            Ptr<Ipv4> ipv4 = PtrNode->GetObject<Ipv4> ();
+            Ipv4InterfaceAddress iaddr = ipv4->GetAddress (i+1,0); 
+            Ipv4Address ipAddr = iaddr.GetLocal ();
+
+            Address addr2;
+            m_sockets[i]->GetSockName (addr2);
+            InetSocketAddress iaddr2 = InetSocketAddress::ConvertFrom (addr2);
+
+            //NS_LOG_INFO("LOCAL ADDR: " << ipAddr.Get() << iaddr2.GetPort());
+
+            if (( (i + m_root_channel) % m_parallel) < m_d_level) {
+                destinations[setchannels] = ipAddr.Get();
+                ports[setchannels] = iaddr2.GetPort();
+                NS_LOG_INFO("Port !" << iaddr2.GetPort());
+                setchannels++;
+            }
+    }
+  dtag.SetSources(destinations);
+  dtag.SetPorts(ports);
+
+  //printf("%s",destinations);
+  p->AddPacketTag(dtag);
   m_d_requests[send_index] = Simulator::Now();
   m_d_requests_received[send_index] = false;
-
+//TODO DEBUG THE TAGGING LATER
     // inserting values by using [] operator 
     //umap["GeeksforGeeks"] = 10; 
     //umap["Practice"] = 20; 
     //umap["Contribute"] = 30; 
-
   m_sent++;
   m_txTrace (p);
+
+  NS_LOG_INFO("Client " <<  this->GetNode()->GetId() << " Sending Request " << m_sent -1 );
   for (int i=0;i<m_parallel;i++) {
 	if (( (i + m_root_channel) % m_parallel) < m_d_level) {
+        //Start here building up a better packet, then profile and debug
+        Address addr2;
+        m_sockets[i]->GetSockName (addr2);
+        //InetSocketAddress iaddr = InetSocketAddress::ConvertFrom (addr2);
+        //NS_LOG_INFO("Writing out on client " << iaddr.GetIpv4() << " On Channel " << i);
+        VerboseSendLogging(m_peerAddresses[i]);
 		m_sockets[i]->Send (p);
-		VerboseSendLogging(m_peerAddresses[i]);
+        
+        //NS_LOG_INFO("CLIENT PORT "  <<  iaddr.GetPort() );
+        //NS_LOG_INFO("CLIENT PORT "  <<  m_sockets[i].GetPort() );
   	}
   }
   if (m_sent < m_count) 
@@ -467,11 +513,13 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 {
   NS_LOG_FUNCTION (this << socket);
   Ptr<Packet> packet;
-  Ipv4PacketInfoTag idtag;
+  DRedTag dtag;
   Address from;
+
   while ((packet = socket->RecvFrom (from)))
     {
-      if (packet->PeekPacketTag(idtag)) {
+       NS_LOG_INFO("!!!!!!!!!!!!REC A PACKET ON THE CLIENT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+      if (packet->PeekPacketTag(dtag)) {
 
 	      //Packet takes are enumerated over a ring the size of
 	      //REQUEST_BUFFER_SIZE 
@@ -479,8 +527,8 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 	      //which sends the max, and min values along with the request
 	      //index so that the state on the server can be relieved.
 	      
-	      int requestIndex = int(idtag.GetRecvIf()) % REQUEST_BUFFER_SIZE;
-	      int rttIndex = int(idtag.GetRecvIf()) % RTT_BUFFER_SIZE;
+	      int requestIndex = int(dtag.GetSeqNum()) % REQUEST_BUFFER_SIZE;
+	      int rttIndex = int(dtag.GetSeqNum()) % RTT_BUFFER_SIZE;
 	      
 	      NS_LOG_FUNCTION("request Index: " << requestIndex);
 	      if (m_d_requests_received[requestIndex] == false) {
@@ -549,7 +597,8 @@ DRedundancyClient::HandleRead (Ptr<Socket> socket)
 				       m_sent << "," <<
 				       m_rec << "," <<
 				       requestIndex << "," <<
-				       (int) m_d_level << ","
+				       (int) m_d_level << "," <<
+                       this->GetNode()->GetId() << ","
 				       ); 
 	      } else {
 		      NS_LOG_INFO("Old Client Response " << requestIndex << " Received");

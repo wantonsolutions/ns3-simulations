@@ -1,4 +1,4 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
+
 /*
  * Copyright 2007 University of Washington
  * 
@@ -34,10 +34,7 @@
 #include <iostream>
 #include <fstream>
 
-
 namespace ns3 {
-	
-
 
 NS_LOG_COMPONENT_DEFINE ("UdpEchoClientApplication");
 
@@ -321,6 +318,32 @@ UdpEchoClient::ScheduleTransmit (Time dt)
 //}
 
 void 
+UdpEchoClient::SetAllAddresses(Address **addresses, uint16_t **ports, int **trafficMatrix, uint8_t parallel, uint32_t numPeers){
+   m_peerAddresses = new Address*[numPeers];
+   m_peerPorts = new uint16_t*[numPeers];
+   m_tm = new int*[numPeers];
+   m_numPeers = numPeers;
+
+   for (uint32_t i=0; i<numPeers; i++) {
+       m_peerAddresses[i] = new Address[parallel];
+       m_peerPorts[i] = new uint16_t[parallel];
+       m_tm[i] = new int[numPeers];
+       for(uint8_t j=0;j<parallel;j++) {
+           //printf("(%d,%d) portnum %d \n",i,j,ports[i][j]);
+           m_peerAddresses[i][j] = addresses[i][j];
+           //printf("(%d,%d)\n",i,j);
+           m_peerPorts[i][j] = ports[i][j];
+       }
+       for(uint32_t j=0;j<numPeers;j++) {
+           m_tm[i][j] = trafficMatrix[i][j];
+       }
+
+
+   }
+   return;
+}
+
+void 
 UdpEchoClient::Send (void)
 {
   NS_LOG_FUNCTION (this);
@@ -370,6 +393,12 @@ UdpEchoClient::Send (void)
     //umap["Contribute"] = 30; 
 
   m_txTrace (p);
+
+    //send to a random server
+   // TODO TODO TODO Start here next time choose the address to send to relient on the peer
+  m_socket->Connect (InetSocketAddress (Ipv4Address::ConvertFrom(m_peerAddresses[(2*rand())%m_numPeers][rand()%3]), m_peerPort));
+  // \send to a random server
+
   m_socket->Send (p);
 
   ++m_sent;
@@ -472,7 +501,8 @@ UdpEchoClient::HandleRead (Ptr<Socket> socket)
 				       m_sent << "," <<
 				       m_rec << "," <<
 				       requestIndex << "," <<
-				       0 << ","
+				       0 << "," <<
+                       this->GetNode()->GetId() << ","
 				       ); 
 	      
       }

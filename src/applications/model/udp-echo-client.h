@@ -145,6 +145,8 @@ public:
   Time SetInterval();
   void SetIntervalRatio(double ratio);
 
+  void SetAllAddresses(Address **addresses, uint16_t **ports, int **tm, uint8_t parallel, uint32_t numPeers);
+
 
 
 
@@ -190,6 +192,15 @@ private:
   Address m_peerAddress; //!< Remote peer address
   uint16_t m_peerPort; //!< Remote peer port
   EventId m_sendEvent; //!< Event to send the next packet
+
+  uint32_t m_numPeers;                     //Total Number of peers
+  Address **m_peerAddresses;    //Array of Peer Addresses
+  uint16_t **m_peerPorts;          //Corresponding array of peer ports
+  int **m_tm;          //Traffic Matrix 
+
+      
+
+
 
 
 

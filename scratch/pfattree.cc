@@ -31,6 +31,8 @@
 #define DRED 1
 #define RAID 2
 
+#define CROSS_CORE 0
+
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("VarClients");
@@ -59,7 +61,7 @@ const int NODES = PODS * PERPOD * NODE;
 
   double IntervalRatio = .99;
 
-  int mode = DRED;
+  int mode = ECHO;
 
   bool debug = false;
 
@@ -103,7 +105,7 @@ void InstallRandomDRedClientTransmissions(float start, float stop, int clientInd
 	Ptr<DRedundancyClient> drc = DynamicCast<DRedundancyClient>(clientApps.Get(0));
 	//drc->SetFill("In the days of my youth I was told what it means to be a man-");
 	drc->SetAddresses(serverAddress,PARALLEL);
-	drc->SetDistribution(DRedundancyClient::incremental);
+	drc->SetDistribution(DRedundancyClient::nodist);
 	drc->SetIntervalRatio(IntervalRatio);
 	//drc->SetDistribution(DRedundancyClient::nodist);
 }
@@ -121,7 +123,7 @@ void InstallEchoClientAttributes(UdpEchoClientHelper *echoClient, int maxpackets
   echoClient->SetAttribute ("PacketSize", UintegerValue (packetsize));
 }
 
-void InstallRandomEchoClientTransmissions(float start, float stop, int clientIndex, UdpEchoClientHelper *echoClient, NodeContainer nodes) {
+void InstallRandomEchoClientTransmissions(float start, float stop, int clientIndex, UdpEchoClientHelper *echoClient, NodeContainer nodes, Address addresses[NODES][PARALLEL], uint16_t Ports[NODES][PARALLEL], int trafficMatrix[NODES][NODES]) {
 	/*
   for (float base = start;base < stop; base += 1.0) {
         ApplicationContainer clientApps = echoClient->Install (nodes.Get (clientIndex));
@@ -134,8 +136,27 @@ void InstallRandomEchoClientTransmissions(float start, float stop, int clientInd
 	clientApps.Start( Seconds (start));
 	clientApps.Stop( Seconds (stop));
 	Ptr<UdpEchoClient> ech = DynamicCast<UdpEchoClient>(clientApps.Get(0));
-	ech->SetDistribution(UdpEchoClient::incremental);
+	ech->SetDistribution(UdpEchoClient::nodist);
 	ech->SetIntervalRatio(IntervalRatio);
+
+      Ptr<UdpEchoClient> uec = DynamicCast<UdpEchoClient>(clientApps.Get(0));
+
+
+        //Convert Addresses
+        ////TODO Start here, trying to convert one set of pointers to another.
+      Address **addrs = new Address*[NODES];
+      uint16_t **ports = new uint16_t *[NODES];
+      int **tm = new int*[NODES];
+      for (int i=0;i<NODES;i++) {
+          addrs[i] = &addresses[i][0];
+          ports[i] = &Ports[i][0];
+          tm[i] = &trafficMatrix[i][0];
+      }
+
+
+
+      //uec->SetAllAddresses((Address **)(addresses),(uint16_t **)(Ports),PARALLEL,NODES);
+      uec->SetAllAddresses(addrs,ports,tm,PARALLEL,NODES);
 
 
   
@@ -150,24 +171,68 @@ void InstallUniformEchoClientTransmissions(float start, float stop, float gap, i
   }
 }
 
-void SetupModularRandomEchoClient(float start, float stop, int serverPort, Address serverAddress, NodeContainer nodes, int clientIndex, double interval, int packetsize, int maxpackets) {
+void SetupModularRandomEchoClient(float start, float stop, uint16_t Ports[NODES][PARALLEL], Address addresses[NODES][PARALLEL], int tm[NODES][NODES], NodeContainer nodes, int clientIndex, double interval, int packetsize, int maxpackets) {
   //map clients to servers 
   //NS_LOG_INFO("Starting Client Packet Size " << packetsize << " interval " << interval << " nPackets " << maxpackets );
-  UdpEchoClientHelper echoClient (serverAddress, serverPort);
+  UdpEchoClientHelper echoClient (addresses[0][0], int(Ports[0][0]));
   InstallEchoClientAttributes(&echoClient, maxpackets,interval,packetsize);
-  InstallRandomEchoClientTransmissions(start,stop,clientIndex,&echoClient,nodes);
+  InstallRandomEchoClientTransmissions(start,stop,clientIndex,&echoClient,nodes, addresses, Ports, tm);
+  
 }
 
-void SetupRandomCoverTraffic(float clientStart,float clientStop,float serverStart, float serverStop, int NPackets, float interval, int packetsize, int serverport ,NodeContainer nodes, int numNodes, int distance, Ipv4InterfaceContainer **addresses, int mode, Address secondAddrs[NODES][PARALLEL]) {
+void printTM(int tm[NODES][NODES]) {
+    printf("\n");
+    for (int i =0;i<NODES;i++) {
+        for (int j=0;j<NODES;j++) {
+            printf("[%2d]",tm[i][j]);
+        }
+        printf("\n");
+    }
+}
+void zeroTM(int tm[NODES][NODES]) {
+    for (int i =0;i<NODES;i++) {
+        for (int j=0;j<NODES;j++) {
+            tm[i][j]=0;
+        }
+    }
+}
+
+void populateTrafficMatrix(int tm[NODES][NODES], int pattern) {
+    zeroTM(tm);
+    switch (pattern) {
+        case CROSS_CORE:
+
+            //This relies on the fact taht clients are even numbers and servers
+            //are odd, ie every client should have a relative server beside
+            //them accounting for the (i-1) as the first term of the server
+            //index equasion. THe second term adds the index to halfway across
+            //the fat tree, the last term mods the server index by the size of the fat-tree.
+            
+            for (int i=0;i<NODES;i++) {
+                int serverindex = ((i-1) + ((K*K*K)/8)) % ((K*K*K)/4); //TODO Debug this might not be right for all fat trees
+                tm[i][serverindex] = 1;
+            }
+    }
+    printTM(tm);
+}
+
+
+void SetupRandomCoverTraffic(float clientStart,float clientStop,float serverStart, float serverStop, int NPackets, float interval, int packetsize, int serverport ,NodeContainer nodes, int numNodes, int tm[NODES][NODES], Ipv4InterfaceContainer **addresses, int mode, Address secondAddrs[NODES][PARALLEL], uint16_t Ports [NODES][PARALLEL]) {
+
+  bool singlePair = false;
   for (int i = 0; i < numNodes; i++) {
           int serverindex;
-	  bool isClient = (i%2);
-	 
+
+	      bool isClient = (i%2);
+	   
+         /*  Killed by the traffic matrix
+          */
 		 if (! isClient) {
 			serverindex = i;
 		 } else {
-			serverindex = ((i-1) + (distance)) % numNodes;
+			serverindex = ((i-1) + ((K*K*K)/8)) % numNodes;
 		 }
+         // Kept alive only for the sake of DRedClient -- 
 
 	  if ( ! isClient ) {
 	  	  ApplicationContainer serverApps;  
@@ -178,12 +243,12 @@ void SetupRandomCoverTraffic(float clientStart,float clientStop,float serverStar
 				break;
 		        }
 			case DRED: {
-				DRedundancyServerHelper dserver (uint16_t(serverport),secondAddrs[serverindex],uint8_t(PARALLEL));
+				DRedundancyServerHelper dserver (uint16_t(serverport),secondAddrs[i],uint8_t(PARALLEL));
 				serverApps = dserver.Install (nodes.Get (i));
 				break;
 		        }
 			case RAID: {
-				RaidServerHelper rserver (serverport,secondAddrs[serverindex],PARALLEL);
+				RaidServerHelper rserver (serverport,secondAddrs[i],PARALLEL);
 				serverApps = rserver.Install (nodes.Get (i));
 				break;
 		        }
@@ -191,12 +256,16 @@ void SetupRandomCoverTraffic(float clientStart,float clientStop,float serverStar
 		  serverApps.Stop (Seconds (clientStop));
 		  }
 	  } else {
+          if (i>1 && singlePair) {
+              continue;
+          }
 		  //Pick the server in the nearist pod
 		  //Right now the servers only communicate over a single channel serverIPs[0] should be serverIPs[rand()%PARALLEL]
 		  switch (mode) {
 			case ECHO: {
 			        printf("setting up echo");
-		  		SetupModularRandomEchoClient(clientStart,clientStop,serverport,secondAddrs[serverindex][(rand()%PARALLEL)],nodes,i,interval,packetsize,NPackets);
+                                                                         //secondAddrs[distance][rand()%PARALLEL]
+		  		SetupModularRandomEchoClient(clientStart,clientStop,Ports,secondAddrs,tm,nodes,i,interval,packetsize,NPackets);
 				break;
 		        }
 			case DRED: {
@@ -211,6 +280,18 @@ void SetupRandomCoverTraffic(float clientStart,float clientStop,float serverStar
 	  }
   }
 }
+
+void translateIp(int base, int* a, int* b, int* c, int* d) {
+	*a = base % 256;
+	base = base / 256;
+	*b = base % 256;
+	base = base / 256;
+	*c = base % 256;
+	base = base / 256;
+	*d = base % 256;
+	return;
+}
+
 
 
 int
@@ -240,7 +321,9 @@ main (int argc, char *argv[])
   cmd.AddValue(DebugString, "Print all log level info statements for all clients", debug);
   cmd.AddValue(ModeString, "The Composition of the clients ECHO=0 DRED=1 RAID=2", mode);
 
+  printf("Parsing");
   cmd.Parse (argc, argv);
+  printf("Done Pares");
   //mode = DRED;
   //
   //Open a file to write out manifest
@@ -329,21 +412,34 @@ main (int argc, char *argv[])
 
   //Config::SetDefault ("ns3::QueueBase::MaxSize", StringValue ("100p"));
   //Config::SetDefault ("ns3::QueueBase::MaxSize", QueueSizeValue(QueueSize("1p")));
+  //
+  InternetStackHelper stack;
+  stack.Install (nodes);
+  for (int i=0; i<PARALLEL;i++) {
+      stack.Install (pods[i]);
+      stack.Install (core[i]);
+  }
 
   PointToPointHelper pointToPoint;
-  pointToPoint.SetQueue("ns3::DropTailQueue", "MaxSize", StringValue("3p"));
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue("1Mbps"));
-  pointToPoint.SetChannelAttribute ("Delay", StringValue ("1.6ms"));
-  //pointToPoint.SetQueue("ns3::DropTailQueue", "MaxPackets", StringValue("3"));
-  //pointToPoint.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(5));
-  //pointToPoint.SetQueue ("ns3::DropTailQueue", "MaxSize", StringValue ("50p"));
-  //pointToPoint.SetDeviceAttribute ("DataRate", StringValue (datarate.str().c_str()));
+  PointToPointHelper pointToPoint2;
+  TrafficControlHelper tch;
+  int linkrate = 1;
+  int queuedepth = 1;
 
-  /*
-  CsmaHelper pointToPoint;
-  pointToPoint.SetChannelAttribute("DataRate", StringValue("1Mbps"));
-  pointToPoint.SetChannelAttribute ("Delay", TimeValue(NanoSeconds(6500)));
-  */
+  pointToPoint.SetQueue("ns3::DropTailQueue", "MaxSize", StringValue(std::to_string(queuedepth) + "p"));
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue(std::to_string(linkrate) + "Gbps"));
+  pointToPoint.SetChannelAttribute ("Delay", StringValue ("1.0us"));
+  ////
+  pointToPoint2.SetQueue("ns3::DropTailQueue", "MaxSize", StringValue(std::to_string(queuedepth) + "p"));
+  pointToPoint2.SetDeviceAttribute ("DataRate", StringValue(std::to_string(linkrate) + "Gbps"));
+  pointToPoint2.SetChannelAttribute ("Delay", StringValue ("1.0us"));
+
+  uint16_t handle = tch.SetRootQueueDisc("ns3::FifoQueueDisc");
+  tch.AddInternalQueues(handle, 1, "ns3::DropTailQueue", "MaxSize", StringValue (std::to_string(queuedepth) + "p"));
+
+
+
+//pointToPoint.SetQueue("ns3::DropTailQueue", "MaxSize", StringValue("1p"));
   //connect nodes to edges
   for (int i=0; i < PARALLEL; i++) {
       for (int n = 0; n < NODES; n++) {
@@ -354,94 +450,102 @@ main (int argc, char *argv[])
       }
   }
 
+
+//pointToPoint.SetQueue("ns3::DropTailQueue", "MaxSize", StringValue("1p"));
   //connect pods to core
   for (int i=0; i < PARALLEL; i++) {
     for (int s=0; s < CORE * PODS; s++) {
-        ndc_pod2core[i][s] = pointToPoint.Install(nc_pod2core[i][s]);
+        ndc_pod2core[i][s] = pointToPoint2.Install(nc_pod2core[i][s]);
     }
   }
 
 
-  InternetStackHelper stack;
-  stack.Install (nodes);
-  for (int i=0; i<PARALLEL;i++) {
-      stack.Install (pods[i]);
-      stack.Install (core[i]);
+
+
+  //Assign queues AFTER the stack install (not sure why)
+
+  //tch.Install(ndc_node2pod[0][0].Get(0));
+  //tch.Install(ndc_node2pod[0][0].Get(1));
+  for (int i=0; i < PARALLEL; i++) {
+      for (int n = 0; n < NODES; n++) {
+          tch.Install(ndc_node2pod[i][n].Get(0));
+          tch.Install(ndc_node2pod[i][n].Get(1));
+	  
+      }
   }
+
+  for (int i=0; i < PARALLEL; i++) {
+    for (int s=0; s < CORE * PODS; s++) {
+        tch.Install(ndc_pod2core[i][s].Get(0));
+        tch.Install(ndc_pod2core[i][s].Get(1));
+    }
+  }
+  
+
 
   Ipv4AddressHelper address;
   Ipv4InterfaceContainer node2pods[PARALLEL][NODES];
   Ipv4InterfaceContainer pods2core[PARALLEL][CORE*PODS];
 
+  int a = 1;
+  int b = 0;
+  int c = 0;
+  int d = 10;
+  int total = 1;
   for (int i=0;i<PARALLEL;i++) {
-        std::stringstream n2pAddr;
-        n2pAddr << "10." << 1 + i << ".1.0";
-  	//address.SetBase(n2pAddr.str().c_str(), "255.255.255.255");
-  	address.SetBase(n2pAddr.str().c_str(), "255.255.255.255");
+        //n2pAddr << "10." << 1 + i << ".1.0";
 	      for (int n=0;n<NODES;n++) {
+            std::stringstream n2pAddr;
+            translateIp(total,&a,&b,&c,&d);
+            n2pAddr << c << "." << i << "." << b << "." << a;
+            //printf("%s\n",n2pAddr.str().c_str());
+            address.SetBase(n2pAddr.str().c_str(), "255.255.255.255");
 	      	node2pods[i][n] = address.Assign(ndc_node2pod[i][n]);
+            total += K;
 	      }
-        std::stringstream p2cAddr;
-        p2cAddr << "10." << 1 + i << ".2.0";
-  	//address.SetBase(p2cAddr.str().c_str(), "255.255.255.255");
-  	address.SetBase(p2cAddr.str().c_str(), "255.255.255.255");
-	      for (int c=0;c<CORE*PODS;c++) {
-		pods2core[i][c] = address.Assign(ndc_pod2core[i][c]);
+        //p2cAddr << "10." << 1 + i << ".128.0";
+	      for (int r=0;r<CORE*PODS;r++) {
+            std::stringstream p2cAddr;
+            translateIp(total,&a,&b,&c,&d);
+            p2cAddr << c << "." << i << "." << b << "." << a;
+            //printf("%s(%d/%d)\n",p2cAddr.str().c_str(),r,CORE*PODS);
+            //address.SetBase(p2cAddr.str().c_str(), "255.255.255.255");
+            address.SetBase(p2cAddr.str().c_str(), "255.255.255.255");
+            pods2core[i][r] = address.Assign(ndc_pod2core[i][r]);
+            total += K;
 	      }
   }
-
-  /*
-	std::stringstream n2pAddr;
-	n2pAddr << "10.0.0.0";
-  	address.SetBase(n2pAddr.str().c_str(), "255.255.255.255");
-  for (int i=0;i<PARALLEL;i++) {
-	      for (int n=0;n<NODES;n++) {
-	      	node2pods[i][n] = address.Assign(ndc_node2pod[i][n]);
-	      }
-	      for (int c=0;c<CORE*PODS;c++) {
-		pods2core[i][c] = address.Assign(ndc_pod2core[i][c]);
-  p2p.EnablePcapAll ("multichannel-probe-test");
-
-  Ptr<MultichannelProbe> mcp = CreateObject<MultichannelProbe> ("multichannel-probe-test.csv");
-  mcp->SetAttribute ("Interval", StringValue("10ms"));
-  mcp->AttachAll ();
-	      }
-  }*/
-  /*
-  for (int i=0;i<PARALLEL;i++) {
-	  //Assign Parallel
-	  //A, B, C, D
-	  //A = 10
-	  //B = K + i
-	  for (int j=0;j < CORE; j++) {
-		  //Assign Core
-		  for ( int k=0;k< PODS;k++) {
-			//Calculate POD
-		  	for ( int l=0;l< NODE;l++) {
-				//Calculate Node
-*/
-
-  int serverport = 9;
-  int clientIndex = 0;
-  int serverIndex = 11;
+////////////////////////////////////////////////////////////////////////////////////
+//Setup Clients
+///////////////////////////////////////////////////////////////////////////////////
+  //int serverport = 9;
+  //int clientIndex = 0;
+  //int serverIndex = 11;
 
 
   int coverserverport = 10;
-  float serverStart = 1.0;
-  float clientStart = 2.0;
-  float clientStop = 100.0;
+  float serverStart = 0.0;
+  float clientStart = 0.0;
+
+  float clientStop = 0.001;
 
   float duration = clientStop;
 
 
   Address IPS[NODES][PARALLEL];
+  uint16_t Ports[NODES][PARALLEL];
   for( int i=0;i<NODES;i++) {
   	for (int j=0;j<PARALLEL;j++) {
 	  	IPS[i][j] = node2pods[j][i].GetAddress(1);
+        Ports[i][j] = uint16_t(coverserverport);
 	}
   }
 
+  int trafficMatrix[NODES][NODES];
+  int pattern = CROSS_CORE;
+  populateTrafficMatrix(trafficMatrix, pattern);
 
+/*
   Address serverIPS[PARALLEL];
   for (int i=0;i<PARALLEL;i++) {
 	  serverIPS[i] = node2pods[i][serverIndex].GetAddress(1);
@@ -451,17 +555,27 @@ main (int argc, char *argv[])
 	  //printf("Is this gettting hit \n");
 	  NS_LOG_INFO("server addr " << serverIPS[i]);
   }
-
+*/
   //determine which client mode is running
-  pointToPoint.EnablePcapAll (ProbeName);
+  //pointToPoint.EnablePcapAll (ProbeName);
 
   Ptr<MultichannelProbe> mcp = CreateObject<MultichannelProbe> (ProbeName);
-  mcp->SetAttribute ("Interval", StringValue("1000ms"));
+  mcp->SetAttribute ("Interval", StringValue("1s"));
   mcp->AttachAll ();
+  mcp->Stop(Seconds(duration));
 
   ApplicationContainer clientApps;
   ApplicationContainer serverApps;
 
+  //HACK REMOVE
+  int PacketSize = 1472;
+  float Rate = 1.0 / ((PARALLEL * (float(linkrate) * (1000000000.0))) / (float(PacketSize) * 8.0));
+  float MaxInterval = Rate * 1.0;
+  printf("Rate %f\n",Rate);
+  ClientProtocolInterval = MaxInterval;
+  CoverInterval = MaxInterval;
+
+  /*
   switch (mode) {
 	  case ECHO:
 	  {
@@ -478,7 +592,8 @@ main (int argc, char *argv[])
 		  Ptr<UdpEchoClient> drc = DynamicCast<UdpEchoClient>(clientApps.Get(0));
 		  //drc->SetFill("In the days of my youth I was told what it means to be a man-");
 		  break;
-	}
+	}ce/ns-allinone-3.29/ns-3.29$ ./waf
+Waf: Entering directory
 	case DRED:
 	  {
 		  NS_LOG_INFO("Running in " << mode << " mode ");
@@ -506,7 +621,7 @@ main (int argc, char *argv[])
 		  
 		  //map clients to servers 
 		  RaidClientHelper dClient (serverport, serverIPS, PARALLEL);
-		  dClient.SetAttribute ("MaxPackets", UintegerValue (ClientProtocolNPackets));
+		  dClien32768t.SetAttribute ("MaxPackets", UintegerValue (ClientProtocolNPackets));
 		  dClient.SetAttribute ("Interval", TimeValue (Seconds (ClientProtocolInterval)));
 		  dClient.SetAttribute ("PacketSize", UintegerValue (ClientProtocolPacketSize));
 
@@ -516,8 +631,7 @@ main (int argc, char *argv[])
 		  drc->SetAddresses(serverIPS,PARALLEL);
 		  break;
 	  }
-  }
-  //Config::SetDefault ("ns3::Ipv4GlobalRouting::EcmpMode", StringValue ("ECMP_RANDOM"));
+  }*/
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
   clientApps.Start (Seconds (clientStart));
@@ -526,24 +640,16 @@ main (int argc, char *argv[])
   serverApps.Stop (Seconds (duration));
 
 
-  ///!!!!!!!!!!!!!!!!KILLL YOURSELF START HERE IN THE MORNING YOU TIRED BASTARD
   Ipv4InterfaceContainer **node2podsPtr = new Ipv4InterfaceContainer*[PARALLEL];
   for (int i = 0; i< PARALLEL; i++ ) {
 	  node2podsPtr[i] = new Ipv4InterfaceContainer[NODES];
 	  for (int  j = 0; j <NODES; j++ ) {
 		  node2podsPtr[i][j] = node2pods[i][j];
-		  NS_LOG_INFO("ADDRESS Print -> (" <<i <<","<<j<<") " << node2podsPtr[i][j].GetAddress(0,0));
 	  }
   }
 
-  for (int i = 0; i< PARALLEL; i++ ) {
-	  for (int  j = 0; j <NODES; j++ ) {
-		  NS_LOG_INFO("ADDRESS COPY -> (" <<i <<","<<j<<") " << node2podsPtr[i][j].GetAddress(0,0));
-	  }
-  }
 
-	NS_LOG_INFO("Test Print");
-	NS_LOG_INFO("Running in " << mode << " mode ");
+
          
 	SetupRandomCoverTraffic(
 			clientStart, 
@@ -556,20 +662,17 @@ main (int argc, char *argv[])
 			coverserverport,
 			nodes, 
 			NODES, //total nodes
-			((K*K)/4), //distance
+			trafficMatrix, //distance
 
 			//&node2pods,
 			node2podsPtr,
 			mode,
-			IPS
+			IPS,
+            Ports
 			);
   
 
-  for (int i = 0; i< PARALLEL; i++ ) {
-	  for (int  j = 0; j <NODES; j++ ) {
-		  NS_LOG_INFO("ADDRESS COPY -> (" <<i <<","<<j<<") " << node2podsPtr[i][j].GetAddress(0,0));
-	  }
-  }
+
   Simulator::Run ();
   Simulator::Destroy ();
   return 0;

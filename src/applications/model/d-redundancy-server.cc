@@ -33,6 +33,7 @@
 #include "ns3/ipv4-packet-info-tag.h"
 
 #include "d-redundancy-server.h"
+#include "ns3/d-red-tag.h"
 
 namespace ns3 {
 
@@ -92,17 +93,36 @@ DRedundancyServer::StartApplication (void)
 {
   NS_LOG_FUNCTION (this);
   //Initalize parallel sockets
+  //setup listening socket
+  //Ptr<Node> n = GetNode();
+  //Ptr<NetDevice> dev = n->GetDevice(0);
+  //m_socket = ConnectSocket(m_port,dev);
+  //m_socket->SetRecvCallback (MakeCallback (&DRedundancyServer::HandleRead, this));
+  //m_socket->SetAllowBroadcast (true);
+
   m_sockets = new Ptr<Socket>[m_parallel];
   for (int i=0;i<m_parallel;i++) {
 	//printf("Starting application D-RED Server setting up socket %d\n",i);
 	//connect a seperate socket to each of the net devices attacehd to the server node
 	Ptr<Node> n = GetNode();
-	Ptr<NetDevice> dev = n->GetDevice(i);
-	m_sockets[i] = ConnectSocket(m_port,dev);
+	Ptr<NetDevice> dev2 = n->GetDevice(i+1);
+	m_sockets[i] = ConnectSocket(i+m_port,dev2);
 	m_sockets[i]->SetRecvCallback (MakeCallback (&DRedundancyServer::HandleRead, this));
 	m_sockets[i]->SetAllowBroadcast (true);
+	//m_socket = ConnectSocket(m_port,dev);
+	//m_socket->SetRecvCallback (MakeCallback (&DRedundancyServer::HandleRead, this));
+	//m_socket->SetAllowBroadcast (true);
+      
+	//NS_LOG_INFO("Starting application setting up socket " << i);
+	//printf("Random Starting Channel %d\n",rand()%m_parallel);
+	//Ptr<Node> n = GetNode();
+	//Ptr<NetDevice> dev = n->GetDevice(i+1);
+    //NS_LOG_INFO("NUM DEVS " << n->GetNDevices());
+	//m_sockets[i] = ConnectSocket(m_peerAddresses[i],m_peerPort,dev);
+	//m_sockets[i]->SetRecvCallback (MakeCallback (&DRedundancyClient::HandleRead, this));
+	//m_sockets[i]->SetAllowBroadcast (true);
+    
 	//TODO remove if a single socket does not cut it
-	break;
 	//This may still be usefull, buf for the moment only a single socket is used while listening because all of the client traffic is forwarded to it.
 
 
@@ -118,7 +138,10 @@ DRedundancyServer::ConnectSocket(uint16_t port, Ptr<NetDevice> dev) {
       NS_LOG_INFO("Setting up server sockets\n");
       TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
       socket = Socket::CreateSocket (GetNode (), tid);
-
+      socket->BindToNetDevice (dev);
+      //Ipv4Address ipv4 = Ipv4Address::ConvertFrom(dev->GetAddress());
+      //InetSocketAddress local = InetSocketAddress (ipv4, port);
+      //InetSocketAddress local = InetSocketAddress (dev->GetAddress(), port);
       InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), port);
       if (socket->Bind (local) == -1)
         {
@@ -156,19 +179,22 @@ DRedundancyServer::BroadcastWrite(Ptr<Packet> packet, Ptr<Socket> socket, Addres
 	//X.Y.X.X, the Y digit will be used to broadcast in parallel. This
 	//function determines which of the parallel chanels the packet was
 	//received on and then broadcasts across the rest.
-
-	Address addr2;
-	socket->GetSockName (addr2);
-	InetSocketAddress iaddr = InetSocketAddress::ConvertFrom (addr2);
-	NS_LOG_INFO("Writing out on server " << iaddr.GetIpv4() );
-
+    /*
+    for (int i=0;i<m_parallel;i++) {
+        Address addr2;
+        m_sockets[i]->GetPeerName (addr2);
+        InetSocketAddress iaddr = InetSocketAddress::ConvertFrom (addr2);
+        NS_LOG_INFO("Writing out on server " << iaddr.GetIpv4() );
+        break; // Same break as above due to not having a parallel socket on the sender
+    }*/
+    /*
 	int mask = 0x00FF0000;
 	int invmask = 0xFF00FFFF;
 	int hitIndex = ((addr.GetIpv4().Get() & mask) >> 16);
 	//TODO I need to update this along with any code which modifies how IP addresses are distributed.
 	NS_LOG_INFO( "Addr Key " << hitIndex);
 	//TODO there is probably a cleaner way to do this by just casting the from address rather than re-initalizing
-	for (int i =1; i <= m_parallel; i++) {
+	for (int i =0; i < m_parallel; i++) {
 		int newAddr32 = (addr.GetIpv4().Get() & invmask) + (i << 16);
 		Ipv4Address tmpAddr = addr.GetIpv4();
 		tmpAddr.Set(newAddr32);
@@ -176,7 +202,37 @@ DRedundancyServer::BroadcastWrite(Ptr<Packet> packet, Ptr<Socket> socket, Addres
 		addr.SetPort(InetSocketAddress::ConvertFrom (from).GetPort ());
 		socket->SendTo (packet, 0, addr);
 		VerboseServerSendPrint(addr,packet);
-	}
+	}*/
+      DRedTag dtag;
+      packet->PeekPacketTag(dtag);
+      uint32_t destinations[NUM_CHANNELS];
+      uint16_t ports[NUM_CHANNELS];
+      uint8_t parallel_Response = dtag.GetNumSources();
+      dtag.GetSources(destinations);
+      dtag.GetPorts(ports);
+
+      //First instance
+      bool portsZero = true;
+      for (int i=0;i<m_parallel;i++) {
+          if (ports[i] != 0) {
+            portsZero = false;
+          }
+      }
+      if (portsZero) {
+          for (int i=0;i<m_parallel;i++) {
+              ports[i] = InetSocketAddress::ConvertFrom (from).GetPort ();
+          }
+      }
+      for (int i=0; i<parallel_Response; i++) {
+		    Ipv4Address tmpAddr = addr.GetIpv4();
+            tmpAddr.Set(destinations[i]);
+            addr.SetIpv4(tmpAddr);
+		    //addr.SetPort(InetSocketAddress::ConvertFrom (from).GetPort ());
+		    addr.SetPort(ports[i]);
+            m_sockets[i]->SendTo (packet, 0, addr);
+            VerboseServerSendPrint(addr,packet);
+      }
+
 }
 
 
@@ -196,16 +252,19 @@ DRedundancyServer::HandleRead (Ptr<Socket> socket)
       //packet->RemoveAllPacketTags ();
       //packet->RemoveAllByteTags ();
       
-      Ipv4PacketInfoTag idtag;
-      packet->PeekPacketTag(idtag);
+      //Ipv4PacketInfoTag idtag;
+      //packet->PeekPacketTag(idtag);
       //TODO maintain high and low watermark with at seperate tag
-      int requestIndex = idtag.GetRecvIf();
+      //int requestIndex = idtag.GetRecvIf();
+        NS_LOG_INFO( "Received Something" );
+      DRedTag dtag;
+      packet->PeekPacketTag(dtag);
+      int requestIndex = dtag.GetSeqNum();
 
       if (!m_served_requests[requestIndex]) {
 	      NS_LOG_INFO("First time request " << requestIndex << " Has arrived, responding");
 	      m_served_requests[requestIndex] = true;
 	      BroadcastWrite(packet,socket,from);
-	      VerboseServerSendPrint(from,packet);
       } else {
 	      NS_LOG_INFO("Request " << requestIndex << " Has allready been serviced");
       }

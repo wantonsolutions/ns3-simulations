@@ -2,7 +2,7 @@
 
 echo "Hello Experiment"
 
-debug=true
+debug=false
 
 function runExperiment () {
 	cpnp=$1
@@ -16,6 +16,7 @@ function runExperiment () {
 	incRate=$9
 	filename=exp_$7_$1-$2-$3-$4-$5-$6-$8-$9
 
+#./waf --visualize --run \
 ./waf --run \
 	"scratch/pfattree
 	--ClientProtocolNPackets=$cpnp
@@ -25,13 +26,13 @@ function runExperiment () {
 	--CoverInterval=$ci
 	--CoverPacketSize=$cps
 	--Mode=$mode
-	--Debug=0
+	--Debug=$debug
 	--IntervalRatio=$incRate
     --ProbeName=$filename.csv
 	--ManifestName=$filename.config
 	" 2>$filename.dat
 }
-
+#" --command-template="gdb --args" 2>$filename.dat
 
 
 
@@ -64,9 +65,14 @@ datetime=`date "+%F_%T"`
 
 echo $1
 
+packetSize=1472
+totalPackets=1000000
+#packetSize=1000
+
+
 if [[ $1 == "debug" ]];then
 	echo "debugging"
-	runExperiment 1 1.0 128 1000 1.0 4096 "debug" 1 0.9
+	runExperiment 0 1.0 128 $totalPackets 1.0 $packetSize "debug" 0 0.9
 	exit 0
 elif [[ $1 == "incrementalIntervals" ]]; then
 	echo "running incremental intervals trial"
@@ -75,11 +81,10 @@ elif [[ $1 == "incrementalIntervals" ]]; then
 elif [[ $1 == "DvUDP" ]]; then
 	echo "D redundancy vs UDP"
 	#runExperiment 1 1.0 128 500 1.0 4096 "dred" 0 data/backoff/echo3.dat
-	totalPackets=1000
     rate=0.99
     dataDir=queuelat
-	RunAndMove 0 1.0 128 $totalPackets 1.0 4096 "echo" 0 "data/$dataDir/echo_$datetime" $rate
-	RunAndMove 0 1.0 128 $totalPackets 1.0 4096 "dred" 1 "data/$dataDir/dred_$datetime" $rate
+	RunAndMove 0 1.0 128 $totalPackets 1.0 $packetSize "echo" 0 "data/$dataDir/echo_$datetime" $rate
+	RunAndMove 0 1.0 128 $totalPackets 1.0 $packetSize "dred" 1 "data/$dataDir/dred_$datetime" $rate
 	ln -sf "echo_$datetime.dat" "data/$dataDir/echo_latest.dat"
 	ln -sf "dred_$datetime.dat" "data/$dataDir/dred_latest.dat"
 	ln -sf "echo_$datetime.csv" "data/$dataDir/echo_latest.csv"
@@ -93,11 +98,10 @@ elif [[ $1 == "DvUDP" ]]; then
 elif [[ $1 == "DvUDP-I" ]]; then
 	echo "D redundancy vs UDP"
 	#runExperiment 1 1.0 128 500 1.0 4096 "dred" 0 data/backoff/echo3.dat
-	totalPackets=100000
 	for i in `seq  0.999 -0.002 0.99`; do
-		runExperiment 1 1.0 128 $totalPackets 1.0 4096 "dred" 1 $i &
+		runExperiment 1 1.0 128 $totalPackets 1.0 $packetSize "dred" 1 $i &
 		sleep 3
-		runExperiment 1 1.0 128 $totalPackets 1.0 4096 "echo" 0 $i &
+		runExperiment 1 1.0 128 $totalPackets 1.0 $packetSize "echo" 0 $i &
 		sleep 3
 	done
 	#mv *.dat data/variableRate/

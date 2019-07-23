@@ -24,7 +24,7 @@
 #include "ns3/ptr.h"
 #include "ns3/address.h"
 
-#define SERVICE_BUFFER_SIZE 4096
+#define SERVICE_BUFFER_SIZE 16777216
 namespace ns3 {
 
 class Socket;
