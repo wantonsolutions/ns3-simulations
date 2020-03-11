@@ -99,7 +99,7 @@ void InstallDRedClientAttributes(DRedundancyClientHelper *dClient, int maxpacket
 
 void InstallRandomDRedClientTransmissions(float start, float stop, int clientIndex, DRedundancyClientHelper *dClient, NodeContainer nodes, Address serverAddress[PARALLEL]) {
 
-        ApplicationContainer clientApps = dClient->Install (nodes.Get (clientIndex));
+  ApplicationContainer clientApps = dClient->Install (nodes.Get (clientIndex));
 	clientApps.Start( Seconds (start));
 	clientApps.Stop( Seconds (stop));
 	Ptr<DRedundancyClient> drc = DynamicCast<DRedundancyClient>(clientApps.Get(0));

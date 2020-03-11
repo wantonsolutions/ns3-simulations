@@ -65,7 +65,8 @@ datetime=`date "+%F_%T"`
 
 echo $1
 
-packetSize=1472
+#packetSize=1472
+packetSize=64
 totalPackets=1000000
 #packetSize=1000
 
@@ -80,7 +81,6 @@ elif [[ $1 == "incrementalIntervals" ]]; then
 	exit 0
 elif [[ $1 == "DvUDP" ]]; then
 	echo "D redundancy vs UDP"
-	#runExperiment 1 1.0 128 500 1.0 4096 "dred" 0 data/backoff/echo3.dat
     rate=0.99
     dataDir=queuelat
 	RunAndMove 0 1.0 128 $totalPackets 1.0 $packetSize "echo" 0 "data/$dataDir/echo_$datetime" $rate
