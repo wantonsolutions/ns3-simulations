@@ -131,6 +131,12 @@ public:
    */
   void SetFill (uint8_t *fill, uint32_t fillSize, uint32_t dataSize);
 
+
+/**
+ * If set to true the echo client will send across parallel channels
+ **/
+  void SetParallel(bool parallel);
+
 // Custom types
 // Distribution refers to different distributions of interval delays, and of packet sizes
   enum distribution
@@ -145,7 +151,8 @@ public:
   Time SetInterval();
   void SetIntervalRatio(double ratio);
 
-  void SetAllAddresses(Address **addresses, uint16_t **ports, int **tm, uint8_t parallel, uint32_t numPeers);
+  void SetAllAddresses(Address *addresses, uint16_t *ports, int **tm, uint32_t numPeers);
+  void SetAllAddressesParallel(Address **addresses, uint16_t **ports, int **trafficMatrix, uint8_t parallel, uint32_t numPeers);
 
 
 
@@ -193,9 +200,15 @@ private:
   uint16_t m_peerPort; //!< Remote peer port
   EventId m_sendEvent; //!< Event to send the next packet
 
+  bool m_parallel; //true if running on a parallel fat-tree
+
   uint32_t m_numPeers;                     //Total Number of peers
-  Address **m_peerAddresses;    //Array of Peer Addresses
-  uint16_t **m_peerPorts;          //Corresponding array of peer ports
+  Address **m_peerAddresses_parallel;    //Array of Peer Addresses
+  uint16_t **m_peerPorts_parallel;          //Corresponding array of peer ports
+
+  Address *m_peerAddresses;    //Array of Peer Addresses
+  uint16_t *m_peerPorts;          //Corresponding array of peer ports
+
   int **m_tm;          //Traffic Matrix 
 
       

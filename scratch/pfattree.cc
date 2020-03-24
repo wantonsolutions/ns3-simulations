@@ -138,6 +138,7 @@ void InstallRandomEchoClientTransmissions(float start, float stop, int clientInd
 	Ptr<UdpEchoClient> ech = DynamicCast<UdpEchoClient>(clientApps.Get(0));
 	ech->SetDistribution(UdpEchoClient::nodist);
 	ech->SetIntervalRatio(IntervalRatio);
+  ech->SetParallel(true);
 
       Ptr<UdpEchoClient> uec = DynamicCast<UdpEchoClient>(clientApps.Get(0));
 
@@ -156,7 +157,7 @@ void InstallRandomEchoClientTransmissions(float start, float stop, int clientInd
 
 
       //uec->SetAllAddresses((Address **)(addresses),(uint16_t **)(Ports),PARALLEL,NODES);
-      uec->SetAllAddresses(addrs,ports,tm,PARALLEL,NODES);
+      uec->SetAllAddressesParallel(addrs,ports,tm,PARALLEL,NODES);
 
 
   
@@ -300,6 +301,7 @@ main (int argc, char *argv[])
   CommandLine cmd;
 
   //Default vlaues for command line arguments
+
 
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting",BooleanValue(true));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RespondToInterfaceEvents", BooleanValue (true));
@@ -500,7 +502,7 @@ main (int argc, char *argv[])
             n2pAddr << c << "." << i << "." << b << "." << a;
             //printf("%s\n",n2pAddr.str().c_str());
             address.SetBase(n2pAddr.str().c_str(), "255.255.255.255");
-	      	node2pods[i][n] = address.Assign(ndc_node2pod[i][n]);
+	      	  node2pods[i][n] = address.Assign(ndc_node2pod[i][n]);
             total += K;
 	      }
         //p2cAddr << "10." << 1 + i << ".128.0";

@@ -532,17 +532,18 @@ for name in filedict:
             cindex = cindex + 1
 
 #Plot max and min veritical lines, this is for the sake of demonstration
-plt.axvline(x=104, label="Theoretical Min = 104us", linestyle='--', color = 'b', linewidth = 1.5)
-plt.axvline(x=minlat, label="Observed  Min = " + str(minlat) +"us", linestyle='--',color = 'r', linewidth = 1.5)
-plt.axvline(x=208, label="Theoretical Max = 208us", linestyle='--', color = 'b', linewidth = 1.5)
-plt.axvline(x=maxlat, label="Observed  Max = " + str(maxlat) + "us",linestyle = '--', color = 'r', linewidth = 1.5)
+
+#plt.axvline(x=104, label="Theoretical Min = 104us", linestyle='--', color = 'b', linewidth = 1.5)
+#plt.axvline(x=minlat, label="Observed  Min = " + str(minlat) +"us", linestyle='--',color = 'r', linewidth = 1.5)
+#plt.axvline(x=208, label="Theoretical Max = 208us", linestyle='--', color = 'b', linewidth = 1.5)
+#plt.axvline(x=maxlat, label="Observed  Max = " + str(maxlat) + "us",linestyle = '--', color = 'r', linewidth = 1.5)
 plt.grid('on')
 
 plt.xlabel("Time us", fontweight='bold')
 #plt.ylabel("Percentile")
 #plt.xscale("log")
 
-plt.xlim(right=250)
+#plt.xlim(right=250)
 lgd = plt.legend(ncol=3,loc="lower center",bbox_to_anchor=(0.50,-0.20))
 #plt.ylabel("Total Packets (Round Trip)")
 plt.title("Round Trip Time 100% Bandwidth Saturation K=32 P=3",fontweight='bold')

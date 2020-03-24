@@ -17,10 +17,10 @@ function runExperiment () {
 	filename=exp_$7_$1-$2-$3-$4-$5-$6-$8-$9
 
 #./waf --visualize --run "scratch/pfattree" --command-template="gdb --args"
-#./waf --run "scratch/pfattree" --command-template="gdb %s"
+#./waf --run "scratch/replication" --command-template="gdb %s"
 
 ./waf --run \
-	"scratch/pfattree
+	"scratch/replication
 	--ClientProtocolNPackets=$cpnp
 	--ClientProtocolInterval=$cpi
 	--ClientProtocolPacketSize=$cpps
